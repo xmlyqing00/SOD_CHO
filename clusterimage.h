@@ -1,0 +1,5 @@
+#ifndef CLUSTERIMAGE
+#define CLUSTERIMAGE
+
+#endif // CLUSTERIMAGE
+
