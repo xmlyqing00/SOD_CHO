@@ -1,5 +1,0 @@
-#ifndef SMOOTHIMAGE_H
-#define SMOOTHIMAGE_H
-
-#endif // SMOOTHIMAGE_H
-

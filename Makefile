@@ -115,12 +115,26 @@ Covering_Hierarchy_For_Video_Retargeting/fast:
 	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build
 .PHONY : Covering_Hierarchy_For_Video_Retargeting/fast
 
+#=============================================================================
+# Target rules for targets named FreenectDriver
+
+# Build rule for target.
+FreenectDriver: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 FreenectDriver
+.PHONY : FreenectDriver
+
+# fast build rule for target.
+FreenectDriver/fast:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/build
+.PHONY : FreenectDriver/fast
+
 main.o: main.cpp.o
 .PHONY : main.o
 
 # target to build an object file
 main.cpp.o:
 	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.o
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.o
 .PHONY : main.cpp.o
 
 main.i: main.cpp.i
@@ -129,6 +143,7 @@ main.i: main.cpp.i
 # target to preprocess a source file
 main.cpp.i:
 	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.i
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.i
 .PHONY : main.cpp.i
 
 main.s: main.cpp.s
@@ -137,6 +152,7 @@ main.s: main.cpp.s
 # target to generate assembly for a file
 main.cpp.s:
 	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.s
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.s
 .PHONY : main.cpp.s
 
 # Help Target
@@ -146,6 +162,7 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... Covering_Hierarchy_For_Video_Retargeting"
+	@echo "... FreenectDriver"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... main.o"
