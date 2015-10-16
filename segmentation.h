@@ -3,7 +3,61 @@
 
 #include "comman.h"
 
+void getSpatialCorrelation(Mat &clusterSpatialCorrelation, const Mat &pixelCluster, const int clusterCount) {
+
+	Point *clusterCenter = new Point[clusterCount];
+	int *clusterRadius = new int[clusterCount];
+
+	int *clusterElementCount = new int[clusterCount];
+	vector<Point> *clusterElement = new vector<Point>[clusterCount];
+	for (int i = 0; i < clusterCount; i++) {
+		clusterElementCount[i] = 0;
+		clusterElement->clear();
+	}
+	getClusterElement(clusterElement, clusterElementCount, pixelCluster);
+
+	for (int i = 0; i < clusterCount; i++) {
+
+		clusterCenter[i] = Point(0, 0);
+		for (size_t j = 0; j < clusterElement[i].size(); j++) {
+			clusterCenter[i] += clusterElement[i][j];
+		}
+		clusterCenter[i].x /= clusterElementCount[i];
+		clusterCenter[i].y /= clusterElementCount[i];
+	}
+
+	for (int i = 0; i < clusterCount; i++) {
+
+		clusterRadius[i] = 0;
+		for (size_t j = 0; j < clusterElement[i].size(); j++) {
+			int distTmp = getPointDist(clusterCenter[i], clusterElement[i][j]);
+			clusterRadius[i] = max(clusterRadius[i], distTmp);
+		}
+	}
+
+	for (int i = 0; i < clusterCount; i++) {
+		for (int j = i + 1; j < clusterCount; j++) {
+
+			int centerDist = getPointDist(clusterCenter[i], clusterCenter[j]);
+			if (CLUSTER_CORRELATION * (clusterRadius[i] + clusterRadius[j]) >  centerDist) {
+				clusterSpatialCorrelation.ptr<uchar>(i)[j] = 1;
+				clusterSpatialCorrelation.ptr<uchar>(j)[i] = 1;
+			} else {
+				clusterSpatialCorrelation.ptr<uchar>(i)[j] = 0;
+				clusterSpatialCorrelation.ptr<uchar>(j)[i] = 0;
+			}
+		}
+	}
+
+	delete[] clusterCenter;
+	delete[] clusterRadius;
+
+}
+
 void mergeCluster( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterColor ) {
+
+	Mat clusterSpatialCorrelation(clusterCount, clusterCount, CV_8UC1);
+	getSpatialCorrelation(clusterSpatialCorrelation, pixelCluster, clusterCount);
 
 	TypeLink **clusterNeighbour = new TypeLink*[clusterCount];
 	for (int i = 0; i < clusterCount; i++) clusterNeighbour[i] = NULL;
@@ -23,14 +77,16 @@ void mergeCluster( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterC
 			for (TypeLink *p1 = clusterNeighbour[i]; p1 != NULL; p1 = p1->next) {
 
 				if (p0->v == p1->v) continue;
-				if (colorDiff(clusterColor[p0->v], clusterColor[p1->v]) < COLOR_DIFF) {
+				if (clusterSpatialCorrelation.ptr<uchar>(p0->v)[p1->v] == 0) continue;
+
+				if (colorDiff(clusterColor[p0->v], clusterColor[p1->v]) < COLOR_DIFF / 2) {
 
 					int pa0 = getElementHead(p0->v, replaceByIdx);
 					int pa1 = getElementHead(p1->v, replaceByIdx);
-					replaceColor[pa0] = replaceColor[pa0] * replaceCount[pa0] +
-										replaceColor[pa1] * replaceCount[pa1];
+					Vec3i color = (Vec3i)replaceColor[pa0] * replaceCount[pa0] +
+								  (Vec3i)replaceColor[pa1] * replaceCount[pa1];
 					replaceCount[pa0] += replaceCount[pa1];
-					replaceColor[pa0] /= replaceCount[pa0];
+					replaceColor[pa0] = color / replaceCount[pa0];
 					replaceByIdx[pa0] = pa1;
 				}
 			}
@@ -87,7 +143,7 @@ void mergeCluster( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterC
 void segmentation( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterColor,
 				   Mat &smoothImg, const Mat &cannyImg, const Mat &inputImg ) {
 
-	typeQue<Point> &que = *(new typeQue<Point>);
+	TypeQue<Point> &que = *(new TypeQue<Point>);
 
 	for ( int y = 0; y < inputImg.rows; y++ ) {
 		for ( int x = 0; x < inputImg.cols; x++ ) {

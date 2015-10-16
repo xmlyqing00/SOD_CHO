@@ -1,121 +1,7 @@
 #ifndef BASEFUNCTION_H
 #define BASEFUNCTION_H
 
-#include <iostream>
-#include <cstdlib>
-#include <cstdio>
-#include <cmath>
-#include <algorithm>
-#include <cstring>
-#include <ctime>
-#include <utility>
-#include <map>
-#include <bitset>
-#include <vector>
-#include <opencv2/opencv.hpp>
-
-
-using namespace std;
-using namespace cv;
-
-const Point dxdy[8] = { Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ), Point( -1, -1 ), Point( 1, -1 ), Point( -1, 1 ), Point( 1, 1 ) };
-const int MAX_QUE_CAP = 50000000;//50000000;
-const int COLOR_DIFF = 15;
-const int PIXEL_CONNECT = 8;
-const int CLUSTER_COVERING = 10;
-const int CLUSTER_SIZE = 25;
-const double e = 2.718281828459;
-const double PI = 3.14159265358;
-const double RELATION_PREV = 0.9;
-
-#define INF 2000000000
-
-struct TypeLink {
-	int u, v;
-	TypeLink *next;
-
-	TypeLink() {
-		u = 0;
-		v = 0;
-		next = NULL;
-	}
-	TypeLink( int _u, int _v, TypeLink *_next ) {
-		u = _u;
-		v = _v;
-		next = _next;
-	}
-};
-
-struct TypeLayer {
-	float z_value;
-	int idx;
-	TypeLayer() {
-		z_value = 0;
-		idx = 0;
-	}
-	TypeLayer(float _z_value, int _idx) {
-		z_value = _z_value;
-		idx = _idx;
-	}
-};
-
-class Vec3bCompare{
-public:
-	bool operator() (const Vec3b &a, const Vec3b &b) {
-		for (int i = 0; i < 3; i++) {
-			if (a.val[i] < b.val[i]) return true;
-			if (a.val[i] > b.val[i]) return false;
-		}
-		return true;
-	}
-};
-
-template<class T>class typeQue {
-
-private:
-    T data[MAX_QUE_CAP];
-	int p_front, p_size, p_rear;
-
-public:
-	typeQue() {
-		p_front = 0;
-		p_size = 0;
-		p_rear = 0;
-	}
-	bool empty() {
-		if ( p_size == 0 ) return true;
-		else return false;
-	}
-	void push( T x ) {
-		data[p_rear++] = x;
-        if ( p_rear == MAX_QUE_CAP ) p_rear = 0;
-		p_size++;
-        if ( p_size > MAX_QUE_CAP ) {
-			cout << "que out of size !! " << endl;
-			return;
-		}
-	}
-	T front() {
-		return data[p_front];
-	}
-	void pop() {
-		p_front++;
-        if ( p_front == MAX_QUE_CAP ) p_front = 0;
-		p_size--;
-	}
-	int size() {
-		return p_size;
-	}
-	void clear() {
-		p_size = 0;
-		p_front = 0;
-		p_rear = 0;
-	}
-	void debug() {
-		cout << "que : " << endl;
-		for ( int i = p_front; i < p_rear; i++ ) cout << data[i] << endl;
-	}
-};
+#include "types.h"
 
 bool isOutside( int x, int y, int boundX, int boundY ) {
 
@@ -130,6 +16,24 @@ int colorDiff( Vec3b p0, Vec3b p1 ) {
 	for ( int i = 0; i < 3; i++ ) diffRes += abs( p0.val[i] - p1.val[i] );
 	return diffRes;
 
+}
+
+int getPointDist(Point p0, Point p1) {
+
+	return cvRound(sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y)));
+}
+
+void getClusterElement( vector<Point> *clusterElement, int *clusterElementCount,
+						const Mat &pixelCluster) {
+
+	for ( int y = 0; y < pixelCluster.rows; y++ ) {
+		for ( int x = 0; x < pixelCluster.cols; x++ ) {
+
+			int clusterIdx = pixelCluster.ptr<int>( y )[x];
+			clusterElementCount[clusterIdx]++;
+			clusterElement[clusterIdx].push_back( Point( x, y ) );
+		}
+	}
 }
 
 void getClusterNeighbour(TypeLink **clusterNeighbour, const Mat &pixelCluster) {

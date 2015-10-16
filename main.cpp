@@ -1,41 +1,7 @@
 #include "comman.h"
 #include "segmentation.h"
 #include "cluster.h"
-
-void retargetImg( const Mat &pixelCluster, const int clusterCount,
-                  const vector<int> &topologyLevel, const double retargetRate ) {
-
-    int maxTopologyLevel = 0;
-    for ( int i = 1; i <= clusterCount; i++ ) {
-        maxTopologyLevel = max( maxTopologyLevel, topologyLevel[i] );
-    }
-
-    vector<double> topologyLevelW( maxTopologyLevel + 1 );
-    vector<double> scaleParam( maxTopologyLevel + 1 );
-    vector<double> offsetParam( maxTopologyLevel + 1 );
-    for ( int i = 0; i <= maxTopologyLevel; i++ ) {
-
-        scaleParam[i] = pow( e, -(double)i / 2 );
-        topologyLevelW[i] = 1 - scaleParam[i];
-        scaleParam[i] = scaleParam[i] * retargetRate;// *pixelCluster.cols;
-        offsetParam[i] = 0;
-
-    }
-
-    const char *energyImgName = "Energy Image.png";
-    Mat energyImg( pixelCluster.size(), CV_8UC1, Scalar( 0 ) );
-    for ( int y = 0; y < pixelCluster.rows; y++ ) {
-        for ( int x = 0; x < pixelCluster.cols; x++ ) {
-            int level = topologyLevel[pixelCluster.ptr<int>( y )[x]];
-            energyImg.ptr<uchar>( y )[x] = cvRound( topologyLevelW[level] * 255 );
-        }
-    }
-
-	imshow( energyImgName, energyImg );
-    imwrite( energyImgName, energyImg );
-
-
-}
+#include "layers.h"
 
 int main(int args, char **argv) {
 
@@ -52,32 +18,46 @@ int main(int args, char **argv) {
 	imwrite("Smooth Image.png", smoothImg);
 
 	Mat clusterRelation, clusterRoute;
-	getClusterRelation(clusterRelation, clusterRoute, pixelCluster, clusterCount);
+	getClusterRelation(clusterRelation, clusterRoute, pixelCluster, clusterCount, inputImg);
 
-	TypeLayer *clusterLayer = new TypeLayer[clusterCount];
-	getClusterLayer(clusterLayer, clusterCount, clusterRelation, clusterRoute);
+	int *clusterLayer = new int[clusterCount];
+	getClusterLayer(clusterLayer, clusterRelation, clusterRoute, clusterCount);
 
-	Mat tmp = Mat::zeros(smoothImg.size(), CV_8UC3);
-	for (int i = 0; i < clusterCount; i++) {
-		cout << clusterLayer[i].idx << " " << clusterLayer[i].z_value << endl;
+	delete[] clusterLayer;
 
-		for (int y = 0; y < tmp.rows; y++) {
-			for (int x = 0; x < tmp.cols; x++) {
-				if (pixelCluster.ptr<int>(y)[x] == clusterLayer[i].idx) {
-					tmp.ptr<Vec3b>(y)[x] = smoothImg.ptr<Vec3b>(y)[x];
-				}
-			}
-		}
-		imshow("tmp", tmp);
-		waitKey(0);
-	}
-//    vector<int> topologyLevel( clusterCount + 1, 0 );
-//	int *clusterGroup = new int[clusterCount + 1];
-//    coveringAnalysis( clusterCount, clusterLink, topologyLevel, clusterGroup );
+//	Mat tmp = Mat::zeros(smoothImg.size(), CV_8UC3);
+//	for (int i = 0; i < clusterCount; i++) {
 
-//    getTopologyLevel( pixelCluster, clusterCount, topologyLevel, smoothImg, clusterGroup );
-//	delete[] clusterGroup;
-//    retargetImg( pixelCluster, clusterCount, topologyLevel, 0.8 );
+//		cout << clusterLayer[i].idx << " " << clusterLayer[i].z_value << endl;
+
+//		for (int y = 0; y < tmp.rows; y++) {
+//			for (int x = 0; x < tmp.cols; x++) {
+//				if (pixelCluster.ptr<int>(y)[x] == clusterLayer[i].idx) {
+//					tmp.ptr<Vec3b>(y)[x] = smoothImg.ptr<Vec3b>(y)[x];
+//				}
+//			}
+//		}
+//		imshow("tmp", tmp);
+//		waitKey(50);
+//	}
+
+//	tmp = Mat::zeros(smoothImg.size(), CV_8UC3);
+//	for (int y = 0; y < tmp.rows; y++) {
+//		for (int x = 0; x < tmp.cols; x++) {
+//			if (pixelCluster.ptr<int>(y)[x] == 247) {
+//				tmp.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//			}
+//			if (pixelCluster.ptr<int>(y)[x] == 246) {
+//				tmp.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
+//			}
+//			if (pixelCluster.ptr<int>(y)[x] == 192) {
+//				tmp.ptr<Vec3b>(y)[x] = Vec3b(0, 0, 255);
+//			}
+//		}
+//	}
+//	//resize(tmp, tmp, Size(), 0.5, 0.5);
+
+//	imshow("ijk", tmp);
 
     waitKey( 0 );
 
