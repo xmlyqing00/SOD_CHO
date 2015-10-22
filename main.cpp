@@ -2,64 +2,55 @@
 #include "segmentation.h"
 #include "cluster.h"
 #include "layers.h"
+#include "retarget.h"
 
 int main(int args, char **argv) {
 
+	VideoCapture cap;
+	//cap.open(argv[1]);
+
 	Mat inputImg, cannyImg;
-	readImage( argv[1], inputImg, cannyImg);
 
-	Mat pixelCluster = Mat::zeros( inputImg.size(), CV_32SC1 );
-	Mat smoothImg = Mat(inputImg.size(), CV_8UC3);
-    int clusterCount = 0;
-	vector<Vec3b> clusterColor;
-	segmentation(pixelCluster, clusterCount, clusterColor, smoothImg, cannyImg, inputImg );
+	int c = 0;
 
-	writeClusterImage( clusterCount, pixelCluster, "Merge Cluster Image.png" );
-	imwrite("Smooth Image.png", smoothImg);
+	//while (readImageFromCap(cap, inputImg, cannyImg)) {
 
-	Mat clusterRelation, clusterRoute;
-	getClusterRelation(clusterRelation, clusterRoute, pixelCluster, clusterCount, inputImg);
+		c++;
+		cout << c << endl;
 
-	int *clusterLayer = new int[clusterCount];
-	getClusterLayer(clusterLayer, clusterRelation, clusterRoute, clusterCount);
+		//if (c < 1000) continue;
+		//if (c % 3 != 0) continue;
+		readImage( argv[1], inputImg, cannyImg);
 
-	delete[] clusterLayer;
+		Mat pixelCluster = Mat::zeros( inputImg.size(), CV_32SC1 );
+		Mat smoothImg = Mat(inputImg.size(), CV_8UC3);
+		int clusterCount = 0;
+		vector<Vec3b> clusterColor;
+		segmentation(pixelCluster, clusterCount, clusterColor, smoothImg, cannyImg, inputImg );
 
-//	Mat tmp = Mat::zeros(smoothImg.size(), CV_8UC3);
-//	for (int i = 0; i < clusterCount; i++) {
+		//writeClusterImage( clusterCount, pixelCluster, "Merge Cluster Image.png" );
+		//imwrite("Smooth Image.png", smoothImg);
 
-//		cout << clusterLayer[i].idx << " " << clusterLayer[i].z_value << endl;
+		Mat clusterRelation, clusterRoute;
+		getClusterRelation(clusterRelation, clusterRoute, pixelCluster, clusterCount);
 
-//		for (int y = 0; y < tmp.rows; y++) {
-//			for (int x = 0; x < tmp.cols; x++) {
-//				if (pixelCluster.ptr<int>(y)[x] == clusterLayer[i].idx) {
-//					tmp.ptr<Vec3b>(y)[x] = smoothImg.ptr<Vec3b>(y)[x];
-//				}
-//			}
-//		}
-//		imshow("tmp", tmp);
-//		waitKey(50);
-//	}
+		int *clusterLayer = new int[clusterCount];
+		getClusterLayer(clusterLayer, clusterRelation, clusterRoute, clusterCount);
 
-//	tmp = Mat::zeros(smoothImg.size(), CV_8UC3);
-//	for (int y = 0; y < tmp.rows; y++) {
-//		for (int x = 0; x < tmp.cols; x++) {
-//			if (pixelCluster.ptr<int>(y)[x] == 247) {
-//				tmp.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
-//			}
-//			if (pixelCluster.ptr<int>(y)[x] == 246) {
-//				tmp.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
-//			}
-//			if (pixelCluster.ptr<int>(y)[x] == 192) {
-//				tmp.ptr<Vec3b>(y)[x] = Vec3b(0, 0, 255);
-//			}
-//		}
-//	}
-//	//resize(tmp, tmp, Size(), 0.5, 0.5);
+		Mat resizeImg;
+		retargetImage(resizeImg, inputImg, pixelCluster, clusterLayer, clusterCount);
+		delete[] clusterLayer;
 
-//	imshow("ijk", tmp);
+		//resize(inputImg, inputImg, Size(), 0.5, 0.5);
+		//resize(resizeImg, resizeImg, Size(), 0.5, 0.5);
+		imshow("input", inputImg);
+		imshow("resize", resizeImg);
+		waitKey(1);
 
-    waitKey( 0 );
+		//break;
+	//}
+
+	waitKey( 0 );
 
     return 0;
 

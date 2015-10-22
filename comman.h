@@ -36,7 +36,9 @@ void getClusterElement( vector<Point> *clusterElement, int *clusterElementCount,
 	}
 }
 
-void getClusterNeighbour(TypeLink **clusterNeighbour, const Mat &pixelCluster) {
+void getClusterNeighbour(TypeLink **clusterNeighbour, const Mat &pixelCluster, const int clusterCount) {
+
+	Mat connectedCount(clusterCount, clusterCount, CV_32SC1, Scalar(0));
 
     for (int y = 0; y < pixelCluster.rows; y++) {
         for (int x = 0; x < pixelCluster.cols; x++) {
@@ -49,31 +51,24 @@ void getClusterNeighbour(TypeLink **clusterNeighbour, const Mat &pixelCluster) {
 
                 if (isOutside(newP.x, newP.y, pixelCluster.cols, pixelCluster.rows)) continue;
 				int idx1 = pixelCluster.ptr<int>(newP.y)[newP.x];
-				if (idx1 != idx0) {
+				if (idx1 != idx0) connectedCount.ptr<int>(idx0)[idx1]++;
 
-					bool exist = false;
-					for (TypeLink *p = clusterNeighbour[idx0]; p != NULL; p = p->next) {
-						if (p->v == idx1) {
-							exist = true;
-							break;
-						}
-					}
-
-					if (!exist) {
-
-						TypeLink *oneLink;
-
-						oneLink = new TypeLink(idx0, idx1, clusterNeighbour[idx0]);
-						clusterNeighbour[idx0] = oneLink;
-
-						oneLink = new TypeLink(idx1, idx0, clusterNeighbour[idx1]);
-						clusterNeighbour[idx1] = oneLink;
-					}
-
-				}
             }
         }
     }
+
+	for (int i = 0; i < clusterCount; i++) {
+		for (int j = 0; j < clusterCount; j++) {
+
+			if (connectedCount.ptr<int>(i)[j] < CONNECTED_COUNT) continue;
+
+			TypeLink *oneLink;
+
+			oneLink = new TypeLink(i, j, clusterNeighbour[i]);
+			clusterNeighbour[i] = oneLink;
+
+		}
+	}
 }
 
 bool cmpPoint( const Point &p0, const Point &p1 ) {
@@ -116,6 +111,22 @@ void readImage( const char *imgName, Mat &inputImg, Mat &cannyImg ) {
     const char* cannyImgName = "Canny Image.png";
     imwrite( cannyImgName, cannyImg );
 
+}
+
+bool readImageFromCap( VideoCapture &cap, Mat &inputImg, Mat &cannyImg ) {
+
+	//inputImg = imread( imgName );
+	cap.read(inputImg);
+	if (inputImg.empty()) return false;
+	resize(inputImg, inputImg, Size(), 0.5, 0.5);
+	//const char* inputImgName = "Input Image.png";
+	//imwrite( inputImgName, inputImg );
+
+	Canny( inputImg, cannyImg, 100, 200 );
+	//const char* cannyImgName = "Canny Image.png";
+	//imwrite( cannyImgName, cannyImg );
+
+	return true;
 }
 
 void writeClusterImage( const int clusterCount, const Mat &pixelCluster, const char *clusterImgName ) {

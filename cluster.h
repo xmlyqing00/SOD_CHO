@@ -38,16 +38,19 @@ void getInitRelation(Mat &clusterRelation, Mat &clusterRoute, const Mat &pixelCl
 
 	for (int i = 0; i < clusterCount; i++) {
 
-		for (int j = 0; j < clusterCount; j++) {
+		for (int j = i + 1; j < clusterCount; j++) {
 
 			float overlap0 = (float)clusterOverlap.ptr<int>(i)[j] / clusterElementCount[j];
 			float overlap1 = (float)clusterOverlap.ptr<int>(j)[i] / clusterElementCount[i];
 			clusterRelation.ptr<float>(i)[j] = getCoveringValue(overlap0, overlap1);
-			if (abs(clusterRelation.ptr<float>(i)[j]) < COVERING_RATE ) {
-				clusterRelation.ptr<float>(i)[j] = 0;
+			if (clusterRelation.ptr<float>(i)[j] == -INF ) {
+				clusterRoute.ptr<int>(i)[j] = 0;
+				clusterRoute.ptr<int>(j)[i] = 0;
+			} else {
+				clusterRelation.ptr<float>(j)[i] = -clusterRelation.ptr<float>(i)[j];
+				clusterRoute.ptr<int>(i)[j] = 1;
+				clusterRoute.ptr<int>(j)[i] = 1;
 			}
-			clusterRoute.ptr<int>(i)[j] = 1;
-
 		}
 	}
 }
@@ -102,6 +105,9 @@ void mergeClusterOverlapCycle(Mat &clusterRelation, Mat &clusterRoute,
 
 		int replace_i = tarjan.componentIndex[i];
 		for (int j = 0; j < clusterCount; j++) {
+
+			if (clusterRoute.ptr<int>(i)[j] == 0) continue;
+
 			int replace_j = tarjan.componentIndex[j];
 			_relation.ptr<float>(replace_i)[replace_j] += clusterRelation.ptr<float>(i)[j];
 			_route.ptr<int>(replace_i)[replace_j]++;
@@ -148,7 +154,7 @@ void getLocalRelation(Mat &clusterRelation, Mat &clusterRoute) {
 
 }
 
-void getClusterRelation(Mat &clusterRelation, Mat &clusterRoute, Mat &pixelCluster, int &clusterCount, Mat &smoothImg) {
+void getClusterRelation(Mat &clusterRelation, Mat &clusterRoute, Mat &pixelCluster, int &clusterCount) {
 
 	int *clusterElementCount = new int[clusterCount];
 	vector<Point> *clusterElement = new vector<Point>[clusterCount];
@@ -159,6 +165,7 @@ void getClusterRelation(Mat &clusterRelation, Mat &clusterRoute, Mat &pixelClust
 	getClusterElement(clusterElement, clusterElementCount, pixelCluster);
 
 	getInitRelation(clusterRelation, clusterRoute, pixelCluster, clusterElement, clusterElementCount, clusterCount);
+	for (int i = 0; i < clusterCount; i++) clusterElement->clear();
 	delete[] clusterElement;
 	delete[] clusterElementCount;
 

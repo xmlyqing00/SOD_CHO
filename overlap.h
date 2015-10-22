@@ -79,19 +79,21 @@ void getOverlap(Mat &clusterOverlap, const int clusterIdx, const Mat &pixelClust
 
 float getCoveringValue(float overlap0, float overlap1) {
 
-    if (max(overlap0, overlap1) < CLUSTER_COVERING) {
-        return 0;
+	if (max(overlap0, overlap1) < CLUSTER_CONNECTED) {
+		return -INF;
     } else {
         if (overlap0 > overlap1) {
 
             if (overlap1 == 0) return 1;
             float tmp = (float)overlap0 / overlap1;
-            return 1 - pow(e, 1 - tmp);
+			tmp = 1 - pow(e, 1 - tmp);
+			return (abs(tmp) < CLUSTER_COVERING) ? 0 : tmp;
         } else {
 
             if (overlap0 == 0) return -1;
             float tmp = (float)overlap1 / overlap0;
-            return pow(e, 1 - tmp) - 1;
+			tmp = pow(e, 1 - tmp) - 1;
+			return (abs(tmp) < CLUSTER_COVERING) ? 0 : tmp;
         }
     }
 }

@@ -19,13 +19,15 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
         for (int j = 0; j < clusterCount; j++) {
 
             if (clusterRoute.ptr<int>(i)[j] == 0) continue;
-            if (clusterRelation.ptr<float>(i)[j] < 0) below[i]++;
+			if (clusterRelation.ptr<float>(i)[j] <= 0) below[i]++;
         }
         if (below[i] == 0) {
             low_layer[i] = 0;
             que.push(i);
         }
     }
+
+	//for (int i = 0; i < clusterCount; i++) cout << below[i] << endl;
 
     while ( !que.empty() ) {
 
@@ -35,7 +37,7 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
         for (int i = 0; i < clusterCount; i++) {
 
             if (clusterRoute.ptr<int>(i)[idx] == 0) continue;
-            if (clusterRelation.ptr<float>(i)[idx] < 0) {
+			if (clusterRelation.ptr<float>(i)[idx] <= 0) {
                 below[i]--;
                 if (below[i] == 0) {
                     low_layer[i] = low_layer[idx] + 1;
@@ -58,7 +60,7 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
         for (int j = 0; j < clusterCount; j++) {
 
             if (clusterRoute.ptr<int>(i)[j] == 0) continue;
-            if (clusterRelation.ptr<float>(i)[j] > 0) above[i]++;
+			if (clusterRelation.ptr<float>(i)[j] >= 0) above[i]++;
         }
         if (above[i] == 0) {
             que.push(i);
@@ -76,7 +78,7 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
 
             if (clusterRoute.ptr<int>(i)[idx] == 0) continue;
 
-            if (clusterRelation.ptr<float>(i)[idx] > 0) {
+			if (clusterRelation.ptr<float>(i)[idx] >= 0) {
                 high_layer[i] = min(high_layer[i], high_layer[idx] - 1);
                 above[i]--;
                 if (above[i] == 0) {
@@ -87,6 +89,7 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
     }
 
     delete[] above;
+	delete &que;
 
     for (int i = 0; i < clusterCount; i++) {
         clusterLayer[i] = (high_layer[i]+low_layer[i]) / 2;
@@ -94,6 +97,17 @@ void getClusterLayer(int *clusterLayer, const Mat &clusterRelation, const Mat &c
 
     delete[] low_layer;
     delete[] high_layer;
+
+	for (int i = 0; i < clusterCount; i++) {
+
+		if (clusterLayer[i] > 10) {
+			clusterLayer[i] = 9;
+		} else if (clusterLayer[i] > 8) {
+			clusterLayer[i] = 8;
+		} else if (clusterLayer[i] > 6) {
+			clusterLayer[i] = 7;
+		}
+	}
 }
 
 #endif // LAYERS_H

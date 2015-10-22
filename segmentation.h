@@ -51,6 +51,8 @@ void getSpatialCorrelation(Mat &clusterSpatialCorrelation, const Mat &pixelClust
 
 	delete[] clusterCenter;
 	delete[] clusterRadius;
+	delete[] clusterElementCount;
+	delete[] clusterElement;
 
 }
 
@@ -61,7 +63,7 @@ void mergeCluster( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterC
 
 	TypeLink **clusterNeighbour = new TypeLink*[clusterCount];
 	for (int i = 0; i < clusterCount; i++) clusterNeighbour[i] = NULL;
-    getClusterNeighbour(clusterNeighbour, pixelCluster);
+	getClusterNeighbour(clusterNeighbour, pixelCluster, clusterCount);
 
 	int *replaceByIdx = new int[clusterCount];
 	int *replaceCount = new int[clusterCount];
@@ -248,7 +250,7 @@ void segmentation( Mat &pixelCluster, int &clusterCount, vector<Vec3b> &clusterC
 
 		map<int, int>::iterator it;
 
-		int mostAppearColorHash;
+		int mostAppearColorHash = 0;
 		int mostAppearTimes = 0;
 
 		for (it = colorBucket[i].begin(); it != colorBucket[i].end(); ++it) {
