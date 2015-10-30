@@ -3,8 +3,8 @@
 
 #include "comman.h"
 
-void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelCluster,
-               int *clusterLayer, const int clusterCount) {
+void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelRegion,
+			   int *regionLayer, const int regionCount) {
 
     Size inSize = inputImg.size();
     Size outSize = inputImg.size();
@@ -13,8 +13,8 @@ void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelCluste
 	retargetImg = Mat(inSize, CV_8UC1, Scalar(0));
 
     int max_layer = 0;
-    for (int i = 0; i < clusterCount; i++) {
-        max_layer = max(max_layer, clusterLayer[i]);
+	for (int i = 0; i < regionCount; i++) {
+		max_layer = max(max_layer, regionLayer[i]);
     }
     max_layer++;
 
@@ -26,12 +26,12 @@ void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelCluste
 
 	for (int y = 0; y < inSize.height; y++) {
 		for (int x = 0; x < inSize.width; x++) {
-			retargetImg.ptr<uchar>(y)[x] = 255 * layerWeight[clusterLayer[pixelCluster.ptr<int>(y)[x]]];
+			retargetImg.ptr<uchar>(y)[x] = 255 * layerWeight[regionLayer[pixelRegion.ptr<int>(y)[x]]];
 		}
 	}
 //	float lambda = 0;
-//	for (int i = 0; i < clusterCount; i++) {
-//		lambda += 1 / (2 * layerWeight[clusterLayer[i]]);
+//	for (int i = 0; i < regionCount; i++) {
+//		lambda += 1 / (2 * layerWeight[regionLayer[i]]);
 //	}
 //	lambda = (outSize.width - inSize.width) / lambda;
 
@@ -46,8 +46,8 @@ void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelCluste
 //			layerComponent[i].clear();
 //		}
 //		for (int x = 0; x < inSize.width; x++) {
-//			int clusterIdx = pixelCluster.ptr<int>(y)[x];
-//			int layerIdx = clusterLayer[clusterIdx];
+//			int regionIdx = pixelRegion.ptr<int>(y)[x];
+//			int layerIdx = regionLayer[regionIdx];
 //			layerBucket[layerIdx]++;
 //			layerComponent[layerIdx].push_back(x);
 //		}
@@ -57,7 +57,7 @@ void retargetImage(Mat &retargetImg, const Mat &inputImg, const Mat &pixelCluste
 //			if (layerBucket[i] == 0) {
 //				layerResize[i] = 0;
 //			} else {
-//				float weight = layerWeight[clusterLayer[i]];
+//				float weight = layerWeight[regionLayer[i]];
 //				float tmp = 2 * weight * layerBucket[i] - lambda;
 //				layerResize[i] = tmp / (2 * weight);
 //				if (layerResize[i] < 0) {

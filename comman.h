@@ -1,75 +1,91 @@
-#ifndef BASEFUNCTION_H
-#define BASEFUNCTION_H
+#ifndef COMMAN_H
+#define COMMAN_H
 
-#include "types.h"
+#include <iostream>
+#include <cstdlib>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+#include <cstring>
+#include <ctime>
+#include <utility>
+#include <map>
+#include <bitset>
+#include <vector>
+#include <stack>
+#include <opencv2/opencv.hpp>
 
-bool isOutside( int x, int y, int boundX, int boundY ) {
+using namespace std;
+using namespace cv;
 
-	if ( x < 0 || y < 0 || x >= boundX || y >= boundY ) return true;
-	return false;
+const Point dxdy[8] = { Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ), Point( -1, -1 ), Point( 1, -1 ), Point( -1, 1 ), Point( 1, 1 ) };
+const double e = 2.718281828459;
+const double PI = 3.14159265358;
+const float FLOAT_EPS = 1e-8;
+const int PIXEL_CONNECT = 8;
+const float RESIZE_RATE = 0.5;
+const int LINE_LENGTH = 10;
+const float LINE_ANGLE = -0.9845;
+#define INF 2000000000
 
-}
+const int COLOR_DIFF = 20;
+const int REGION_SIZE = 25;
+const int REGION_CORRELATION = 2;
+const float CONTOUR_COMPLETION = 0.01;
+const float REGION_CONNECTED = 0.001;
+const float REGION_COVERING = 0.01;
 
-int colorDiff( Vec3b p0, Vec3b p1 ) {
+struct TypeLink {
+	int u, v;
+	TypeLink *next;
 
-	int diffRes = 0;
-	for ( int i = 0; i < 3; i++ ) diffRes += abs( p0.val[i] - p1.val[i] );
-	return diffRes;
-
-}
-
-int getPointDist(Point p0, Point p1) {
-
-	return cvRound(sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y)));
-}
-
-void getClusterElement( vector<Point> *clusterElement, int *clusterElementCount,
-						const Mat &pixelCluster) {
-
-	for ( int y = 0; y < pixelCluster.rows; y++ ) {
-		for ( int x = 0; x < pixelCluster.cols; x++ ) {
-
-			int clusterIdx = pixelCluster.ptr<int>( y )[x];
-			clusterElementCount[clusterIdx]++;
-			clusterElement[clusterIdx].push_back( Point( x, y ) );
-		}
+	TypeLink() {
+		u = 0;
+		v = 0;
+		next = NULL;
 	}
-}
-
-void getClusterNeighbour(TypeLink **clusterNeighbour, const Mat &pixelCluster, const int clusterCount) {
-
-	Mat connectedCount(clusterCount, clusterCount, CV_32SC1, Scalar(0));
-
-    for (int y = 0; y < pixelCluster.rows; y++) {
-        for (int x = 0; x < pixelCluster.cols; x++) {
-
-			int idx0 = pixelCluster.ptr<int>(y)[x];
-
-            for (int k = 0; k < PIXEL_CONNECT; k++) {
-
-                Point newP = Point(x,y) + dxdy[k];
-
-                if (isOutside(newP.x, newP.y, pixelCluster.cols, pixelCluster.rows)) continue;
-				int idx1 = pixelCluster.ptr<int>(newP.y)[newP.x];
-				if (idx1 != idx0) connectedCount.ptr<int>(idx0)[idx1]++;
-
-            }
-        }
-    }
-
-	for (int i = 0; i < clusterCount; i++) {
-		for (int j = 0; j < clusterCount; j++) {
-
-			if (connectedCount.ptr<int>(i)[j] < CONNECTED_COUNT) continue;
-
-			TypeLink *oneLink;
-
-			oneLink = new TypeLink(i, j, clusterNeighbour[i]);
-			clusterNeighbour[i] = oneLink;
-
-		}
+	TypeLink( int _u, int _v, TypeLink *_next ) {
+		u = _u;
+		v = _v;
+		next = _next;
 	}
-}
+};
+
+struct TypeLayer {
+	float z_value;
+	int idx;
+	TypeLayer() {
+		z_value = 0;
+		idx = 0;
+	}
+	TypeLayer(float _z_value, int _idx) {
+		z_value = _z_value;
+		idx = _idx;
+	}
+};
+
+struct TypeLine {
+	Point u, v;
+	TypeLine() {
+		u = Point(0, 0);
+		v = Point(0, 0);
+	}
+	TypeLine(Point _u, Point _v) {
+		u = _u;
+		v = _v;
+	}
+};
+
+class Vec3bCompare{
+public:
+	bool operator() (const Vec3b &a, const Vec3b &b) {
+		for (int i = 0; i < 3; i++) {
+			if (a.val[i] < b.val[i]) return true;
+			if (a.val[i] > b.val[i]) return false;
+		}
+		return true;
+	}
+};
 
 bool cmpPoint( const Point &p0, const Point &p1 ) {
 	if ( p0.y == p1.y ) {
@@ -88,6 +104,47 @@ bool cmpVec3b(const Vec3b &a, const Vec3b &b) {
 	return _a < _b;
 }
 
+bool isOutside( int x, int y, int boundX, int boundY ) {
+
+	if ( x < 0 || y < 0 || x >= boundX || y >= boundY ) return true;
+	return false;
+
+}
+
+int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
+
+	int diffRes = 0;
+	for ( int i = 0; i < 3; i++ ) diffRes += abs( p0.val[i] - p1.val[i] );
+	return diffRes;
+
+}
+
+int getPointDist(const Point &p0, const Point &p1) {
+
+	return cvRound(sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y)));
+}
+
+void getRegionElement( vector<Point> *regionElement, int *regionElementCount,
+					   const Mat &pixelRegion) {
+
+	for ( int y = 0; y < pixelRegion.rows; y++ ) {
+		for ( int x = 0; x < pixelRegion.cols; x++ ) {
+
+			int regionIdx = pixelRegion.ptr<int>( y )[x];
+			regionElementCount[regionIdx]++;
+			regionElement[regionIdx].push_back( Point( x, y ) );
+		}
+	}
+}
+
+int getElementHead( int u, int *head ) {
+
+	if ( head[u] != u ) {
+			head[u] = getElementHead( head[u], head );
+	}
+	return head[u];
+}
+
 int hashVec3b(const Vec3b &v) {
 
 	int d = *(int*)(&v) & 0x00ffffff;
@@ -101,15 +158,16 @@ Vec3b deHashVec3b(int d) {
 	return v;
 }
 
-void readImage( const char *imgName, Mat &inputImg, Mat &cannyImg ) {
+void readImage( const char *imgName, Mat &inputImg, Mat &smoothImg, Mat &cannyImg ) {
 
     inputImg = imread( imgName );
-    const char* inputImgName = "Input Image.png";
-    imwrite( inputImgName, inputImg );
+	imwrite( "Input_Image.png", inputImg );
 
     Canny( inputImg, cannyImg, 100, 200 );
-    const char* cannyImgName = "Canny Image.png";
-    imwrite( cannyImgName, cannyImg );
+	imwrite( "Canny_Image.png", cannyImg );
+
+	GaussianBlur(inputImg, smoothImg, Size(3,3), 0.5);
+	imwrite("Smooth_Image.png", smoothImg);
 
 }
 
@@ -129,38 +187,66 @@ bool readImageFromCap( VideoCapture &cap, Mat &inputImg, Mat &cannyImg ) {
 	return true;
 }
 
-void writeClusterImage( const int clusterCount, const Mat &pixelCluster, const char *clusterImgName ) {
+void writeRegionImage( const int regionCount, const Mat &pixelRegion, const char *imgName ) {
 
     srand( clock() );
-    Mat clusterImg = Mat::zeros( pixelCluster.size(), CV_8UC3 );
+    Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
     vector<Vec3b> color;
     color.push_back( Vec3b() );
-    for ( int i = 0; i < clusterCount; i++ ) {
+    for ( int i = 0; i < regionCount; i++ ) {
 
-            uchar t0 = rand() * 255;
-            uchar t1 = rand() * 255;
-            uchar t2 = rand() * 255;
-            color.push_back( Vec3b( t0, t1, t2 ) );
+		uchar t0 = rand() * 255;
+		uchar t1 = rand() * 255;
+		uchar t2 = rand() * 255;
+		color.push_back( Vec3b( t0, t1, t2 ) );
     }
 
-    for ( int y = 0; y < pixelCluster.rows; y++ ) {
-            for ( int x = 0; x < pixelCluster.cols; x++ ) {
-                    if ( pixelCluster.ptr<int>( y )[x] == 0 ) continue;
-                    clusterImg.ptr<Vec3b>( y )[x] = color[pixelCluster.ptr<int>( y )[x]];
-            }
+    for ( int y = 0; y < pixelRegion.rows; y++ ) {
+		for ( int x = 0; x < pixelRegion.cols; x++ ) {
+			regionImg.ptr<Vec3b>(y)[x] = color[pixelRegion.ptr<int>(y)[x]];
+		}
     }
-    //imshow( clusterImgName, clusterImg );
-    imwrite( clusterImgName, clusterImg );
+    //imshow( regionImgName, regionImg );
+	imwrite(imgName, regionImg);
 
 }
 
-int getElementHead( int u, int *head ) {
+//const int CONNECTED_COUNT = 10;
+//const float COVERING_RATE = 0.001;
+//void getRegionNeighbour(TypeLink **regionNeighbour, const Mat &pixelRegion, const int regionCount) {
 
-    if ( head[u] != u ) {
-            head[u] = getElementHead( head[u], head );
-    }
-    return head[u];
-}
+//	Mat connectedCount(regionCount, regionCount, CV_32SC1, Scalar(0));
 
-#endif // BASEFUNCTION_H
+//    for (int y = 0; y < pixelRegion.rows; y++) {
+//        for (int x = 0; x < pixelRegion.cols; x++) {
+
+//			int idx0 = pixelRegion.ptr<int>(y)[x];
+
+//            for (int k = 0; k < PIXEL_CONNECT; k++) {
+
+//                Point newP = Point(x,y) + dxdy[k];
+
+//                if (isOutside(newP.x, newP.y, pixelRegion.cols, pixelRegion.rows)) continue;
+//				int idx1 = pixelRegion.ptr<int>(newP.y)[newP.x];
+//				if (idx1 != idx0) connectedCount.ptr<int>(idx0)[idx1]++;
+
+//            }
+//        }
+//    }
+
+//	for (int i = 0; i < regionCount; i++) {
+//		for (int j = 0; j < regionCount; j++) {
+
+//			if (connectedCount.ptr<int>(i)[j] < CONNECTED_COUNT) continue;
+
+//			TypeLink *oneLink;
+
+//			oneLink = new TypeLink(i, j, regionNeighbour[i]);
+//			regionNeighbour[i] = oneLink;
+
+//		}
+//	}
+//}
+
+#endif // COMMAN_H
 
