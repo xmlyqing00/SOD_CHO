@@ -18,7 +18,8 @@
 using namespace std;
 using namespace cv;
 
-const Point dxdy[8] = { Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ), Point( -1, -1 ), Point( 1, -1 ), Point( -1, 1 ), Point( 1, 1 ) };
+const Point dxdy[8] = {Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ),
+					   Point( -1, -1), Point( 1, -1 ), Point( -1, 1), Point( 1, 1 )};
 const double e = 2.718281828459;
 const double PI = 3.14159265358;
 const float FLOAT_EPS = 1e-8;
@@ -29,25 +30,26 @@ const float LINE_ANGLE = -0.9845;
 #define INF 2000000000
 
 const int COLOR_DIFF = 20;
-const int REGION_SIZE = 25;
+const float REGION_SIZE = 0.0002;
 const int REGION_CORRELATION = 2;
 const float CONTOUR_COMPLETION = 0.01;
 const float REGION_CONNECTED = 0.001;
 const float REGION_COVERING = 0.01;
 
-struct TypeLink {
-	int u, v;
-	TypeLink *next;
+#define sqr(_x) ((_x) * (_x))
 
-	TypeLink() {
-		u = 0;
-		v = 0;
-		next = NULL;
+struct TypeEdge {
+	Point u, v;
+	int w;
+	TypeEdge() {
+		u = Point(0, 0);
+		v = Point(0, 0);
+		w = 0;
 	}
-	TypeLink( int _u, int _v, TypeLink *_next ) {
+	TypeEdge( Point _u, Point _v, int _w ) {
 		u = _u;
 		v = _v;
-		next = _next;
+		w = _w;
 	}
 };
 
@@ -76,32 +78,14 @@ struct TypeLine {
 	}
 };
 
-class Vec3bCompare{
-public:
-	bool operator() (const Vec3b &a, const Vec3b &b) {
-		for (int i = 0; i < 3; i++) {
-			if (a.val[i] < b.val[i]) return true;
-			if (a.val[i] > b.val[i]) return false;
-		}
-		return true;
-	}
-};
-
 bool cmpPoint( const Point &p0, const Point &p1 ) {
 	if ( p0.y == p1.y ) {
 		return p0.x < p1.x;
 	} else return p0.y < p1.y;
 }
 
-bool cmpTypeLayer(const TypeLayer &a, const TypeLayer &b) {
-	return a.z_value < b.z_value;
-}
-
-bool cmpVec3b(const Vec3b &a, const Vec3b &b) {
-
-	int _a = *(int*)(&a);
-	int _b = *(int*)(&b);
-	return _a < _b;
+bool cmpTypeEdge(const TypeEdge &e1, const TypeEdge &e2) {
+	return e1.w < e2.w;
 }
 
 bool isOutside( int x, int y, int boundX, int boundY ) {
@@ -114,8 +98,8 @@ bool isOutside( int x, int y, int boundX, int boundY ) {
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
 	int diffRes = 0;
-	for ( int i = 0; i < 3; i++ ) diffRes += abs( p0.val[i] - p1.val[i] );
-	return diffRes;
+	for ( int i = 0; i < 3; i++ ) diffRes += sqr( p0.val[i] - p1.val[i] );
+	return cvRound(sqrt(diffRes));
 
 }
 
@@ -192,7 +176,6 @@ void writeRegionImage( const int regionCount, const Mat &pixelRegion, const char
     srand( clock() );
     Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
     vector<Vec3b> color;
-    color.push_back( Vec3b() );
     for ( int i = 0; i < regionCount; i++ ) {
 
 		uchar t0 = rand() * 255;

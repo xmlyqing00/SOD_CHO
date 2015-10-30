@@ -20,20 +20,21 @@ void getDepthMap(Mat &depthMap, const Mat &inputImg, const Mat &pixelRegion, con
 
 		for (int y = 0; y < pixelRegion.rows; y++) {
 			for (int x = 0; x < pixelRegion.cols; x++) {
-				int _x = x % bgBlockSize;
-				int _y = y % bgBlockSize;
-				if ((_x < halfBgBlockSize && _y < halfBgBlockSize) ||
-					(_x >= halfBgBlockSize && _y >=halfBgBlockSize)) {
-					layerMap.ptr<Vec3b>(y)[x] = Vec3b(102, 102, 102);
-				} else {
-					layerMap.ptr<Vec3b>(y)[x] = Vec3b(153, 153, 154);
-				}
-			}
-		}
-		for (int y = 0; y < pixelRegion.rows; y++) {
-			for (int x = 0; x < pixelRegion.cols; x++) {
 				if (regionLayer[pixelRegion.ptr<int>(y)[x]] == i) {
+
 					layerMap.ptr<Vec3b>(y)[x] = inputImg.ptr<Vec3b>(y)[x];
+
+				} else {
+
+					int _x = x % bgBlockSize;
+					int _y = y % bgBlockSize;
+					if ((_x < halfBgBlockSize && _y < halfBgBlockSize) ||
+						(_x >= halfBgBlockSize && _y >=halfBgBlockSize)) {
+						layerMap.ptr<Vec3b>(y)[x] = Vec3b(102, 102, 102);
+					} else {
+						layerMap.ptr<Vec3b>(y)[x] = Vec3b(153, 153, 154);
+					}
+
 				}
 			}
 		}

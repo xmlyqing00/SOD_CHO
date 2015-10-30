@@ -24,7 +24,7 @@ int main(int args, char **argv) {
 		//if (c % 3 != 0) continue;
 		readImage( argv[1], inputImg, smoothImg, cannyImg);
 
-		Mat pixelRegion = Mat::zeros( inputImg.size(), CV_32SC1 );
+		Mat pixelRegion;
 		int regionCount = 0;
 		vector<Vec3b> regionColor;
 		segmentImage(pixelRegion, regionCount, regionColor, cannyImg, smoothImg );
@@ -42,7 +42,7 @@ int main(int args, char **argv) {
 
 		//Mat resizeImg;
 		//retargetImage(resizeImg, inputImg, pixelRegion, regionLayer, regionCount);
-		//delete[] regionLayer;
+		delete[] regionLayer;
 
 		//resize(inputImg, inputImg, Size(), 0.5, 0.5);
 		//resize(resizeImg, resizeImg, Size(), 0.5, 0.5);

@@ -328,6 +328,7 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
     delete[] replaceCount;
     delete[] replaceColor;
 
+	cout << regionCount << endl;
 	writeRegionImage(regionCount, pixelRegion, "Merge_Region.png");
 }
 

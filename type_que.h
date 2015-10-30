@@ -7,13 +7,12 @@ template<class T>class TypeQue {
 
 private:
     vector<T> data;
-    int p_front, p_size, p_rear;
+	int p_front, p_size;
 
 public:
     TypeQue() {
         p_front = 0;
         p_size = 0;
-        p_rear = 0;
     }
     bool empty() {
         if ( p_size == 0 ) return true;
@@ -36,12 +35,11 @@ public:
     void clear() {
         p_size = 0;
         p_front = 0;
-        p_rear = 0;
         data.clear();
     }
     void debug() {
         cout << "que : " << endl;
-        for ( int i = p_front; i < p_rear; i++ ) cout << data[i] << endl;
+		for ( int i = p_front; i < p_size; i++ ) cout << data[i] << endl;
     }
 };
 

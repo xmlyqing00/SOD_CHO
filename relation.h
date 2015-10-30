@@ -56,7 +56,7 @@ void getHorizontalBound(vector<Point> &horizontalBound, const vector<Point> &reg
 	}
 	rasterizeLine(horizontalBound, regionBound[regionBound.size() - 1], regionBound[0]);
 
-	sort( horizontalBound.begin(), horizontalBound.end(), cmpPoint );
+	sort( horizontalBound.begin(), horizontalBound.end(), cmpPoint);
 }
 
 void getOverlap(Mat &regionOverlap, const int regionIdx, const Mat &pixelRegion,
