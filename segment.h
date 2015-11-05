@@ -4,8 +4,8 @@
 #include "comman.h"
 #include "type_que.h"
 
-int getMinIntDiff(int SEGMENT_THRESHOLD, int regionSize) {
-	return SEGMENT_THRESHOLD / regionSize;
+float getMinIntDiff(int SEGMENT_THRESHOLD, int regionSize) {
+	return (float)SEGMENT_THRESHOLD / regionSize;
 }
 
 int Point2Index(Point u, int width) {
@@ -20,17 +20,25 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	pixelRegion = Mat::zeros( inputImg.size(), CV_32SC1 );
 	const int leftside[4] = {2, 3, 5, 7};
 	//const int SEGMENT_THRESHOLD = inputImg.rows * inputImg.cols / 50;
-	const int SEGMENT_THRESHOLD = 2 * max(inputImg.rows, inputImg.cols);
+	const int SEGMENT_THRESHOLD = 5 * max(inputImg.rows, inputImg.cols);
 
 	for (int y = 0; y < inputImg.rows; y++) {
 		for (int x = 0; x < inputImg.cols; x++) {
+
+//			if (y == 304 && x == 55) {
+//				cout << endl;
+//			}
+			if (cannyImg.ptr<uchar>(y)[x] == 255) continue;
 
 			Point nowP = Point(x, y);
 
 			for (int k = 0; k < 4; k++) {
 
 				Point newP = nowP + dxdy[leftside[k]];
-				if ( isOutside( newP.x, newP.y, inputImg.cols, inputImg.rows ) ) continue;
+				if (isOutside(newP.x, newP.y, inputImg.cols, inputImg.rows)) continue;
+
+				if (cannyImg.ptr<uchar>(newP.y)[newP.x] == 255) continue;
+
 				Vec3b nowColor = inputImg.ptr<Vec3b>(nowP.y)[nowP.x];
 				Vec3b newColor = inputImg.ptr<Vec3b>(newP.y)[newP.x];
 				int diff = colorDiff(nowColor, newColor);
@@ -44,7 +52,7 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	int pixelCount = inputImg.rows * inputImg.cols;
 	int *regionHead = new int[pixelCount];
 	int *regionSize = new int[pixelCount];
-	int *minIntDiff = new int[pixelCount];
+	float *minIntDiff = new float[pixelCount];
 	for (int i = 0; i < pixelCount; i++) {
 		regionHead[i] = i;
 		regionSize[i] = 1;
@@ -59,18 +67,20 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 		int pv = getElementHead(vIdx, regionHead);
 		if (pu == pv) continue;
 
+		//if (edges[i].w > 1) break;
+
 		if (edges[i].w <= minIntDiff[pu] && edges[i].w <= minIntDiff[pv]) {
 
+			//cout << edges[i].u << " " << edges[i].v << " " << edges[i].w << endl;
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 			minIntDiff[pu] = edges[i].w + getMinIntDiff(SEGMENT_THRESHOLD, regionSize[pu]);
-		} else {
-			//cout << endl;
 		}
 	}
 
 	delete[] minIntDiff;
 
+	// get main region
 	int idx = 0;
 	regionCount = 0;
 	int minRegionSize = REGION_SIZE * (inputImg.rows * inputImg.cols);
@@ -95,43 +105,40 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 		}
 	}
 	delete[] regionHead;
-	delete[] regionSize;
 	delete[] regionIndex;
+	delete[] regionSize;
 
-	// get region typical color
-	map<int, int> *colorBucket = new map<int, int>[regionCount];
+	//writeRegionImage(regionCount, pixelRegion, "Segment_Init.png");
+
+	// get region represent color
+	Vec3i *_regionColor = new Vec3i[regionCount];
+	regionSize = new int[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		_regionColor[i] = Vec3i(0, 0, 0);
+		regionSize[i] = 0;
+	}
 
 	for (int y = 0; y < pixelRegion.rows; y++) {
 		for (int x = 0; x < pixelRegion.cols; x++) {
 
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			if (regionIdx == -1) continue;
-			colorBucket[regionIdx][hashVec3b(inputImg.ptr<Vec3b>(y)[x])]++;
+			if (regionIdx != -1) {
+				_regionColor[regionIdx] += inputImg.ptr<Vec3b>(y)[x];
+				regionSize[regionIdx]++;
+			}
 		}
 	}
 
 	regionColor = vector<Vec3b>(regionCount);
 
 	for (int i = 0; i < regionCount; i++) {
-
-		map<int, int>::iterator it;
-
-		int mostAppearColorHash = 0;
-		int mostAppearTimes = 0;
-
-		for (it = colorBucket[i].begin(); it != colorBucket[i].end(); ++it) {
-
-			//cout << it->first << " " << it->second << endl;
-			if (it->second > mostAppearTimes) {
-				mostAppearTimes = it->second;
-				mostAppearColorHash = it->first;
-			}
+		for (int k = 0; k < 3; k++) {
+			regionColor[i].val[k] = _regionColor[i].val[k] / regionSize[i];
 		}
-
-		regionColor[i] = deHashVec3b(mostAppearColorHash);
 	}
 
-	delete[] colorBucket;
+	delete[] _regionColor;
+	delete[] regionSize;
 
 	// cluster small regions
 	TypeQue<Point> &que = *(new TypeQue<Point>);
@@ -162,9 +169,8 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 
 	delete &que;
 
-
-
 	cout << regionCount << endl;
+
 	writeRegionImage(regionCount, pixelRegion, "Segment_Region.png");
 
 }

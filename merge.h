@@ -183,7 +183,7 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
         }
     }
 
-//	Mat tmp = extendPoly.clone();
+	//Mat tmp = extendPoly.clone();
 	const Point *_polyArray[1] = {&_poly[0]};
 	const int _polyPts[1] = {(int)_poly.size()};
 	fillPoly(extendPoly, _polyArray, _polyPts, 1, Scalar(255), 8);
@@ -197,16 +197,16 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 
 //	imshow("poly", tmp);
 //	imshow("extend poly", extendPoly);
-//	waitKey(0);
+//	waitKey(1);
 }
 
-bool contourCompletion(const Mat &extendPoly0, const Mat &extendPoly1) {
+bool contourCompletion(const Mat &extendPoly0, const Mat &extendPoly1, const int area ) {
 
 	Mat maskMat = extendPoly0 & extendPoly1;
 	Scalar overlapCount = sum(maskMat);
 
-	float tmp = (float)overlapCount.val[0] / (maskMat.rows * maskMat.cols);
-    if (tmp > CONTOUR_COMPLETION) {
+	float tmp = CONTOUR_COMPLETION * area;
+	if (overlapCount.val[0] > tmp) {
         return true;
     } else {
         return false;
@@ -260,39 +260,45 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
 				poly = _poly;
 			}
 
+			//cout << i << endl;
 			getExtendPoly(extendPoly[i], poly);
+
+//			if (i == pixelRegion.ptr<int>(251)[173]) {
+//				waitKey(0);
+//			}
 		}
 	}
 
-	Mat regionSpatialCorrelation(regionCount, regionCount, CV_8UC1);
-	getSpatialCorrelation(regionSpatialCorrelation, pixelRegion, regionCount);
+	//Mat regionSpatialCorrelation(regionCount, regionCount, CV_8UC1);
+	//getSpatialCorrelation(regionSpatialCorrelation, pixelRegion, regionCount);
+
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		regionElementCount[i] = 0;
+		regionElement->clear();
+	}
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
 
 	int *replaceHead = new int[regionCount];
-	int *replaceCount = new int[regionCount];
-	Vec3b *replaceColor = new Vec3b[regionCount];
-	for (int i = 0; i < regionCount; i++) {
-		replaceHead[i] = i;
-		replaceCount[i] = 1;
-		replaceColor[i] = regionColor[i];
-	}
+	for (int i = 0; i < regionCount; i++) replaceHead[i] = i;
 
     for (int i = 0; i < regionCount; i++) {
         for (int j = i + 1; j < regionCount; j++) {
 
-            if (regionSpatialCorrelation.ptr<uchar>(i)[j] == 0) continue;
+			//if (regionSpatialCorrelation.ptr<uchar>(i)[j] == 0) continue;
 			if (colorDiff(regionColor[i], regionColor[j]) > COLOR_DIFF) continue;
-			if (contourCompletion(extendPoly[i], extendPoly[j]) == false) continue;
+			int area = 0.5 * (regionElementCount[i] + regionElementCount[j]);
+			if (contourCompletion(extendPoly[i], extendPoly[j], area) == false) continue;
 
-            int pa0 = getElementHead(i, replaceHead);
-            int pa1 = getElementHead(j, replaceHead);
-            Vec3i color = (Vec3i)replaceColor[pa0] * replaceCount[pa0] +
-                          (Vec3i)replaceColor[pa1] * replaceCount[pa1];
-            replaceCount[pa0] += replaceCount[pa1];
-            replaceColor[pa0] = color / replaceCount[pa0];
+			int pa0 = getElementHead(i, replaceHead);
+			int pa1 = getElementHead(j, replaceHead);
             replaceHead[pa1] = pa0;
 
         }
     }
+	delete[] regionElementCount;
+	delete[] regionElement;
 
     int *regionBucket = new int[regionCount];
     memset(regionBucket, 0, sizeof(int)*(regionCount));
@@ -305,28 +311,33 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
         if (regionBucket[i] == 1) regionBucket[i] = _regionCount++;
     }
 
+	Vec3i *_regionColor = new Vec3i[_regionCount];
+	int *regionSize = new int[_regionCount];
+	for (int i = 0; i < _regionCount; i++) {
+		_regionColor[i] =  Vec3i(0, 0, 0);
+		regionSize[i] = 0;
+	}
     for (int y = 0; y < pixelRegion.rows; y++) {
         for (int x = 0; x < pixelRegion.cols; x++) {
 
             int regionIdx = pixelRegion.ptr<int>(y)[x];
-            pixelRegion.ptr<int>(y)[x] = regionBucket[replaceHead[regionIdx]];
+			int newRegionIdx = regionBucket[getElementHead(regionIdx, replaceHead)];
+			pixelRegion.ptr<int>(y)[x] = newRegionIdx;
+			regionSize[newRegionIdx]++;
+			_regionColor[newRegionIdx] += regionColor[regionIdx];
         }
     }
 
-    //for (int i = 1; i <= regionCount; i++) cout << i << " " << replaceByIdx[i] << " " << regionBucket[i] << " " << regionColor[i] << endl;
-
-    vector<Vec3b> _regionColor(_regionCount);
-    for (int i = 0; i < regionCount; i++) {
-        int regionIdx = regionBucket[replaceHead[i]];
-        _regionColor[regionIdx] = regionColor[i];
+	regionCount = _regionCount;
+	regionColor.resize(regionCount);
+	for (int i = 0; i < regionCount; i++) {
+		regionColor[i] = _regionColor[i] / regionSize[i];
     }
-    regionColor = _regionColor;
-    regionCount = _regionCount;
 
     delete[] regionBucket;
     delete[] replaceHead;
-    delete[] replaceCount;
-    delete[] replaceColor;
+	delete[] regionSize;
+	delete[] _regionColor;
 
 	cout << regionCount << endl;
 	writeRegionImage(regionCount, pixelRegion, "Merge_Region.png");

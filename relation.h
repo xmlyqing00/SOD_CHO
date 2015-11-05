@@ -59,8 +59,10 @@ void getHorizontalBound(vector<Point> &horizontalBound, const vector<Point> &reg
 	sort( horizontalBound.begin(), horizontalBound.end(), cmpPoint);
 }
 
-void getOverlap(Mat &regionOverlap, const int regionIdx, const Mat &pixelRegion,
+void getOverlap(Mat &regionOverlap, int &area, const int regionIdx, const Mat &pixelRegion,
 				const vector<Point> &horizontalBound) {
+
+	area = 0;
 
 	for ( size_t i = 0; i < horizontalBound.size(); ) {
 
@@ -75,6 +77,7 @@ void getOverlap(Mat &regionOverlap, const int regionIdx, const Mat &pixelRegion,
 			int neighbourIdx = pixelRegion.ptr<int>( y )[x];
 			if (neighbourIdx == regionIdx) continue;
 			regionOverlap.ptr<int>(regionIdx)[neighbourIdx]++;
+			area++;
 		}
 		i = j + 1;
 	}
@@ -82,22 +85,34 @@ void getOverlap(Mat &regionOverlap, const int regionIdx, const Mat &pixelRegion,
 
 float getCoveringValue(float overlap0, float overlap1) {
 
-	if (max(overlap0, overlap1) < REGION_CONNECTED) {
-		return -INF;
+	if (max(overlap0, overlap1) < 0.0001) {
+		return -2;
 	} else {
-		if (overlap0 > overlap1) {
+//		if (overlap0 > overlap1) {
 
-			if (overlap1 == 0) return 1;
-			float tmp = (float)overlap0 / overlap1;
-			tmp = 1 - pow(e, 1 - tmp);
-			return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
-		} else {
+//			if (overlap1 == 0) return 1;
+//			float tmp = (float)overlap0 / overlap1;
+//			tmp = 1 - pow(e, 1 - tmp);
+//			return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
+//		} else {
 
-			if (overlap0 == 0) return -1;
-			float tmp = (float)overlap1 / overlap0;
-			tmp = pow(e, 1 - tmp) - 1;
-			return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
-		}
+//			if (overlap0 == 0) return -1;
+//			float tmp = (float)overlap1 / overlap0;
+//			tmp = pow(e, 1 - tmp) - 1;
+//			return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
+//		}
+		//float tmp = overlap0 - overlap1;
+//		if (overlap1 == 0) return 1;
+//		float tmp = overlap0 / overlap1;
+//		tmp = 3.0 / (1 + 2 * pow(0.25, tmp)) - 2;
+
+		float tmp0 = e / (e - 1);
+		float tmp = -pow(e, -overlap0 / 1) + pow(e, -overlap1 / 1);
+		tmp = tmp * tmp0;
+
+//		printf("%.3f %.3f %.5f", overlap0, overlap1, tmp);
+//		cout << endl;
+		return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
 	}
 }
 
@@ -106,6 +121,7 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 					 const int regionCount) {
 
 	Mat regionOverlap(regionCount, regionCount, CV_32SC1, Scalar(0));
+	int *convexHullArea = new int[regionCount];
 
 	for ( int i = 0; i < regionCount; i++ ) {
 
@@ -115,7 +131,7 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 		vector<Point> horizontalBound;
 		getHorizontalBound(horizontalBound, regionBound);
 
-		getOverlap(regionOverlap, i, pixelRegion, horizontalBound);
+		getOverlap(regionOverlap, convexHullArea[i], i, pixelRegion, horizontalBound);
 
 //		if (i == 36 || i == 63 || i == 1) {
 //			cout << i << endl;
@@ -140,7 +156,26 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 			float overlap0 = (float)regionOverlap.ptr<int>(i)[j] / regionElementCount[j];
 			float overlap1 = (float)regionOverlap.ptr<int>(j)[i] / regionElementCount[i];
 			regionRelation.ptr<float>(i)[j] = getCoveringValue(overlap0, overlap1);
-			if (regionRelation.ptr<float>(i)[j] == -INF ) {
+//			if (regionRelation.ptr<float>(i)[j] != -2) {
+//				printf("%d %d %.4lf",regionOverlap.ptr<int>(i)[j], regionOverlap.ptr<int>(j)[i], regionRelation.ptr<float>(i)[j]);
+//				cout << endl;
+//				Mat r1(pixelRegion.size(), CV_8UC3, Scalar(0));
+//				for (int y = 0; y <= r1.rows; y++) {
+//					for (int x = 0; x < r1.cols; x++) {
+//						if (pixelRegion.ptr<int>(y)[x] == i) {
+//							r1.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//						}
+//						if (pixelRegion.ptr<int>(y)[x] == j) {
+//							r1.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
+//						}
+//					}
+//				}
+//				resize(r1, r1, Size(), 0.5, 0.5);
+//				imshow("region", r1);
+//				waitKey(0);
+//			}
+
+			if (regionRelation.ptr<float>(i)[j] == -2 ) {
 				regionRoute.ptr<int>(i)[j] = 0;
 				regionRoute.ptr<int>(j)[i] = 0;
 			} else {
@@ -150,6 +185,8 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 			}
 		}
 	}
+
+	delete[] convexHullArea;
 }
 
 

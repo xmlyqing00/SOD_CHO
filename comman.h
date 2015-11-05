@@ -1,18 +1,22 @@
 #ifndef COMMAN_H
 #define COMMAN_H
 
-#include <iostream>
-#include <cstdlib>
-#include <cstdio>
-#include <cmath>
-#include <algorithm>
-#include <cstring>
-#include <ctime>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <string.h>
+#include <time.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <unistd.h>
 #include <utility>
+#include <iostream>
 #include <map>
-#include <bitset>
+#include <algorithm>
 #include <vector>
 #include <stack>
+
 #include <opencv2/opencv.hpp>
 
 using namespace std;
@@ -27,14 +31,16 @@ const int PIXEL_CONNECT = 8;
 const float RESIZE_RATE = 0.5;
 const int LINE_LENGTH = 10;
 const float LINE_ANGLE = -0.9845;
+const float GAUSSIAN_SIZE = 0.02;
+const float CONTRAST_BETA = 0.2;
 #define INF 2000000000
 
 const int COLOR_DIFF = 20;
-const float REGION_SIZE = 0.0002;
+const float REGION_SIZE = 0.001;
 const int REGION_CORRELATION = 2;
-const float CONTOUR_COMPLETION = 0.01;
+const float CONTOUR_COMPLETION = 0.1;
 const float REGION_CONNECTED = 0.001;
-const float REGION_COVERING = 0.01;
+const float REGION_COVERING = 0.001;
 
 #define sqr(_x) ((_x) * (_x))
 
@@ -142,17 +148,65 @@ Vec3b deHashVec3b(int d) {
 	return v;
 }
 
+void init() {
+
+	pid_t pid;
+
+	pid = fork();
+	if (pid == 0) {
+		// Child process
+		if (execlp("rm", "rm", "-r", "depth", (char*)0) == -1) {
+			perror("SHELL");
+		}
+		exit(0);
+	} else {
+		// Parent process
+		int status;
+		do {
+			waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+	}
+
+	pid = fork();
+	if (pid == 0) {
+		// Child process
+		if (execlp("mkdir", "mkdir", "depth", (char*)0) == -1) {
+			perror("SHELL");
+		}
+		exit(0);
+	} else {
+		// Parent process
+		int status;
+		do {
+			waitpid(pid, &status, WUNTRACED);
+		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
+	}
+}
+
 void readImage( const char *imgName, Mat &inputImg, Mat &smoothImg, Mat &cannyImg ) {
 
     inputImg = imread( imgName );
 	imwrite( "Input_Image.png", inputImg );
+	Size size = inputImg.size();
+	int cut = size.height * 0.025;
+	inputImg = inputImg(Range(cut, size.height-cut), Range(cut, size.width-cut));
 
     Canny( inputImg, cannyImg, 100, 200 );
 	imwrite( "Canny_Image.png", cannyImg );
 
-	GaussianBlur(inputImg, smoothImg, Size(3,3), 0.5);
-	imwrite("Smooth_Image.png", smoothImg);
-
+	Mat tmpImg;
+	GaussianBlur(inputImg, tmpImg, Size(3,3), 0.5);
+	//imwrite("Smooth_Image.png", smoothImg);
+	smoothImg = tmpImg.clone();
+//	cvtColor(tmpImg, smoothImg, COLOR_RGB2Lab);
+//	Mat tmp(tmpImg.size(), CV_8UC1);
+//	for (int y = 0; y < tmp.rows; y++) {
+//		for (int x = 0; x < tmp.cols; x++) {
+//			tmp.ptr<uchar>(y)[x] = smoothImg.ptr<Vec3b>(y)[x].val[0];
+//		}
+//	}
+//	imshow("tmp", tmp);
+//	waitKey(0);
 }
 
 bool readImageFromCap( VideoCapture &cap, Mat &inputImg, Mat &cannyImg ) {
@@ -186,12 +240,13 @@ void writeRegionImage( const int regionCount, const Mat &pixelRegion, const char
 
     for ( int y = 0; y < pixelRegion.rows; y++ ) {
 		for ( int x = 0; x < pixelRegion.cols; x++ ) {
-			regionImg.ptr<Vec3b>(y)[x] = color[pixelRegion.ptr<int>(y)[x]];
+			int idx = pixelRegion.ptr<int>(y)[x];
+			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = color[idx];
 		}
     }
     //imshow( regionImgName, regionImg );
 	imwrite(imgName, regionImg);
-
+	imshow(imgName, regionImg);
 }
 
 //const int CONNECTED_COUNT = 10;

@@ -95,7 +95,7 @@ void getRegionLayer(int *regionLayer, Mat &regionRelation, Mat &regionRoute, Mat
         for (int j = 0; j < regionCount; j++) {
 
             if (regionRoute.ptr<int>(i)[j] == 0) continue;
-			if (regionRelation.ptr<float>(i)[j] <= 0) below[i]++;
+			if (regionRelation.ptr<float>(i)[j] < 0) below[i]++;
         }
         if (below[i] == 0) {
             low_layer[i] = 0;
@@ -113,7 +113,7 @@ void getRegionLayer(int *regionLayer, Mat &regionRelation, Mat &regionRoute, Mat
         for (int i = 0; i < regionCount; i++) {
 
             if (regionRoute.ptr<int>(i)[idx] == 0) continue;
-			if (regionRelation.ptr<float>(i)[idx] <= 0) {
+			if (regionRelation.ptr<float>(i)[idx] < 0) {
                 below[i]--;
                 if (below[i] == 0) {
                     low_layer[i] = low_layer[idx] + 1;
@@ -136,7 +136,7 @@ void getRegionLayer(int *regionLayer, Mat &regionRelation, Mat &regionRoute, Mat
         for (int j = 0; j < regionCount; j++) {
 
             if (regionRoute.ptr<int>(i)[j] == 0) continue;
-			if (regionRelation.ptr<float>(i)[j] >= 0) above[i]++;
+			if (regionRelation.ptr<float>(i)[j] > 0) above[i]++;
         }
         if (above[i] == 0) {
             que.push(i);
@@ -154,7 +154,7 @@ void getRegionLayer(int *regionLayer, Mat &regionRelation, Mat &regionRoute, Mat
 
             if (regionRoute.ptr<int>(i)[idx] == 0) continue;
 
-			if (regionRelation.ptr<float>(i)[idx] >= 0) {
+			if (regionRelation.ptr<float>(i)[idx] > 0) {
                 high_layer[i] = min(high_layer[i], high_layer[idx] - 1);
                 above[i]--;
                 if (above[i] == 0) {

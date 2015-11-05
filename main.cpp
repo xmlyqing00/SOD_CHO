@@ -4,24 +4,25 @@
 #include "relation.h"
 #include "layers.h"
 #include "depth.h"
+#include "saliency.h"
 #include "retarget.h"
 
 int main(int args, char **argv) {
 
-	VideoCapture cap;
-	//cap.open(argv[1]);
+	init();
 
-	Mat inputImg, smoothImg, cannyImg;
+//	for (int fileIdx = 0; fileIdx < 300; fileIdx++) {
 
-	//int c = 0;
+//		char fileName[100];
+//		sprintf(fileName, "test//nju400//depth//00%03d_left.jpg", fileIdx);
+//		Mat depth_truth = imread(fileName);
+//		imshow("depth-truth", depth_truth);
 
-	//while (readImageFromCap(cap, inputImg, cannyImg)) {
+//		sprintf(fileName, "test//nju400//image//00%03d_left.jpg", fileIdx);
+//		cout << fileName << endl;
 
-		//c++;
-		//cout << c << endl;
-
-		//if (c < 1000) continue;
-		//if (c % 3 != 0) continue;
+		Mat inputImg, smoothImg, cannyImg;
+		//readImage( fileName, inputImg, smoothImg, cannyImg);
 		readImage( argv[1], inputImg, smoothImg, cannyImg);
 
 		Mat pixelRegion;
@@ -29,7 +30,11 @@ int main(int args, char **argv) {
 		vector<Vec3b> regionColor;
 		segmentImage(pixelRegion, regionCount, regionColor, cannyImg, smoothImg );
 
-		mergeRegion(pixelRegion, regionCount, regionColor);
+		int old_regionCount;
+		do {
+			old_regionCount = regionCount;
+			mergeRegion(pixelRegion, regionCount, regionColor);
+		} while (old_regionCount != regionCount);
 
 		Mat regionRelation, regionRoute;
 		getRegionRelation(regionRelation, regionRoute, pixelRegion, regionCount);
@@ -40,20 +45,21 @@ int main(int args, char **argv) {
 		Mat depthMap;
 		getDepthMap(depthMap, inputImg, pixelRegion, regionLayer, regionCount);
 
-		//Mat resizeImg;
-		//retargetImage(resizeImg, inputImg, pixelRegion, regionLayer, regionCount);
-		delete[] regionLayer;
-
-		//resize(inputImg, inputImg, Size(), 0.5, 0.5);
-		//resize(resizeImg, resizeImg, Size(), 0.5, 0.5);
 		imshow("input", inputImg);
 		imshow("depth", depthMap);
 		waitKey(1);
 
-		//break;
+	//	Mat saliencyMap;
+	//	getSaliencyMap(saliencyMap, pixelRegion, regionLayer, regionCount);
+	//	imshow("saliency", saliencyMap);
+		waitKey(0);
+		//Mat resizeImg;
+		//retargetImage(resizeImg, inputImg, pixelRegion, regionLayer, regionCount);
+		delete[] regionLayer;
 	//}
 
-	waitKey( 0 );
+	//resize(inputImg, inputImg, Size(), 0.5, 0.5);
+	//resize(resizeImg, resizeImg, Size(), 0.5, 0.5);
 
     return 0;
 
