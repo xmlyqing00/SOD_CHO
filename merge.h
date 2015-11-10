@@ -4,60 +4,6 @@
 #include "comman.h"
 #include "convexhull.h"
 
-void getSpatialCorrelation(Mat &regionSpatialCorrelation, const Mat &pixelRegion, const int regionCount) {
-
-    Point *regionCenter = new Point[regionCount];
-    int *regionRadius = new int[regionCount];
-
-    int *regionElementCount = new int[regionCount];
-    vector<Point> *regionElement = new vector<Point>[regionCount];
-    for (int i = 0; i < regionCount; i++) {
-        regionElementCount[i] = 0;
-        regionElement->clear();
-    }
-    getRegionElement(regionElement, regionElementCount, pixelRegion);
-
-    for (int i = 0; i < regionCount; i++) {
-
-        regionCenter[i] = Point(0, 0);
-        for (size_t j = 0; j < regionElement[i].size(); j++) {
-            regionCenter[i] += regionElement[i][j];
-        }
-        regionCenter[i].x /= regionElementCount[i];
-        regionCenter[i].y /= regionElementCount[i];
-    }
-
-    for (int i = 0; i < regionCount; i++) {
-
-        regionRadius[i] = 0;
-        for (size_t j = 0; j < regionElement[i].size(); j++) {
-            int distTmp = getPointDist(regionCenter[i], regionElement[i][j]);
-            regionRadius[i] = max(regionRadius[i], distTmp);
-        }
-    }
-
-    for (int i = 0; i < regionCount; i++) {
-        for (int j = i + 1; j < regionCount; j++) {
-
-            int centerDist = getPointDist(regionCenter[i], regionCenter[j]);
-			if (REGION_CORRELATION * (regionRadius[i] + regionRadius[j]) >  centerDist) {
-                regionSpatialCorrelation.ptr<uchar>(i)[j] = 1;
-                regionSpatialCorrelation.ptr<uchar>(j)[i] = 1;
-            } else {
-                regionSpatialCorrelation.ptr<uchar>(i)[j] = 0;
-                regionSpatialCorrelation.ptr<uchar>(j)[i] = 0;
-            }
-        }
-    }
-
-    delete[] regionCenter;
-    delete[] regionRadius;
-    delete[] regionElementCount;
-    for (int i = 0; i < regionCount; i++) regionElement->clear();
-    delete[] regionElement;
-
-}
-
 int getLineLength(const TypeLine &line) {
 	return getPointDist(line.u, line.v);
 }
@@ -118,7 +64,7 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 
 		const Point *polyArray[1] = {&poly[0]};
 		const int polyPts[1] = {(int)poly.size()};
-		fillPoly(extendPoly, polyArray, polyPts, 1, Scalar(255), 8);
+		fillPoly(extendPoly, polyArray, polyPts, 1, Scalar(1), 8);
 		return;
 	}
 
@@ -134,7 +80,7 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 		line1.v = poly[(i+1) % poly.size()];
 		line1.u = poly[(i+2) % poly.size()];
 
-		//if (getLineLength(line0) < LINE_LENGTH || getLineLength(line1) < LINE_LENGTH) continue;
+		//if (getLineLength(line0) < PARAM3_LINE_LENGTH || getLineLength(line1) < PARAM3_LINE_LENGTH) continue;
 
         Point intersectP = getIntersectP(line0, line1);
 		bool intersectExist;
@@ -172,11 +118,11 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 			_poly.push_back(intersectP);
 			break;
 		case 1:
-			intersectP = line0.u + REGION_CORRELATION * (line0.v-line0.u);
+			intersectP = line0.u + CONVEX_EXTENSION_SIZE * (line0.v-line0.u);
 			fitBoundary(intersectP, extendPoly.size());
 			_poly.push_back(intersectP);
 
-			intersectP = line1.u + REGION_CORRELATION * (line1.v-line1.u);
+			intersectP = line1.u + CONVEX_EXTENSION_SIZE * (line1.v-line1.u);
 			fitBoundary(intersectP, extendPoly.size());
 			_poly.push_back(intersectP);
 			break;
@@ -186,11 +132,11 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 	//Mat tmp = extendPoly.clone();
 	const Point *_polyArray[1] = {&_poly[0]};
 	const int _polyPts[1] = {(int)_poly.size()};
-	fillPoly(extendPoly, _polyArray, _polyPts, 1, Scalar(255), 8);
+	fillPoly(extendPoly, _polyArray, _polyPts, 1, Scalar(1), 8);
 
 //	const Point *polyArray[1] = {&poly[0]};
 //	const int polyPts[1] = {(int)poly.size()};
-//	fillPoly(tmp, polyArray, polyPts, 1, Scalar(255), 8);
+//	fillPoly(tmp, polyArray, polyPts, 1, Scalar(1), 8);
 //	for (size_t i = 0; i < poly.size(); i++) {
 //		circle(tmp, poly[i], 5, Scalar(255));
 //	}
@@ -200,12 +146,13 @@ void getExtendPoly(Mat &extendPoly, const vector<Point> &poly) {
 //	waitKey(1);
 }
 
-bool contourCompletion(const Mat &extendPoly0, const Mat &extendPoly1, const int area ) {
+bool checkCommanArea(const Mat &extendPoly0, const Mat &extendPoly1, const int area,
+					   float MIN_COMMAN_AREA) {
 
 	Mat maskMat = extendPoly0 & extendPoly1;
 	Scalar overlapCount = sum(maskMat);
-
-	float tmp = CONTOUR_COMPLETION * area;
+	//cout << overlapCount.val[0] << endl;
+	float tmp = MIN_COMMAN_AREA * area;
 	if (overlapCount.val[0] > tmp) {
         return true;
     } else {
@@ -214,7 +161,11 @@ bool contourCompletion(const Mat &extendPoly0, const Mat &extendPoly1, const int
 
 }
 
-void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor) {
+void mergeRegion(Mat &pixelRegion, vector< vector<int> > &regionMap,
+				 vector<Vec3b> &regionColor, vector<Vec3b> &regionColorVar,
+				 const Mat &LABImg, const float COLOR_THRESHOLD) {
+
+	int regionCount = regionMap.size();
 
 	vector< vector<Point> > regionBound;
 	getConvexHull(regionBound, pixelRegion, regionCount, regionColor);
@@ -233,13 +184,13 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
 			vector<Point> _poly;
 			_poly.push_back(regionBound[i][0]);
 			for (size_t j = 1; j < regionBound[i].size()-1; j++) {
-				if (getPointDist(_poly.back(), regionBound[i][j]) > LINE_LENGTH) {
+				if (getPointDist(_poly.back(), regionBound[i][j]) > MIN_LINE_LENGTH) {
 					_poly.push_back(regionBound[i][j]);
 				}
 			}
 
-			if (getPointDist(_poly.back(), regionBound[i].back()) > LINE_LENGTH &&
-				getPointDist(_poly[0], regionBound[i].back()) > LINE_LENGTH) {
+			if (getPointDist(_poly.back(), regionBound[i].back()) > MIN_LINE_LENGTH &&
+				getPointDist(_poly[0], regionBound[i].back()) > MIN_LINE_LENGTH) {
 				_poly.push_back(regionBound[i].back());
 			}
 
@@ -252,25 +203,14 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
 				float norm1 = getVectorNorm(_poly[prevIdx]-_poly[j]);
 				float norm2 = getVectorNorm(_poly[nextIdx]-_poly[j]);
 				float cosRes = dotRes / (norm1 * norm2);
-				if (cosRes > LINE_ANGLE) poly.push_back(_poly[j]);
+				if (cosRes > STRAIGHT_LINE_ANGLE) poly.push_back(_poly[j]);
 
 			}
 
-			if (poly.size() < 3) {
-				poly = _poly;
-			}
-
-			//cout << i << endl;
 			getExtendPoly(extendPoly[i], poly);
 
-//			if (i == pixelRegion.ptr<int>(251)[173]) {
-//				waitKey(0);
-//			}
 		}
 	}
-
-	//Mat regionSpatialCorrelation(regionCount, regionCount, CV_8UC1);
-	//getSpatialCorrelation(regionSpatialCorrelation, pixelRegion, regionCount);
 
 	int *regionElementCount = new int[regionCount];
 	vector<Point> *regionElement = new vector<Point>[regionCount];
@@ -286,10 +226,22 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
     for (int i = 0; i < regionCount; i++) {
         for (int j = i + 1; j < regionCount; j++) {
 
-			//if (regionSpatialCorrelation.ptr<uchar>(i)[j] == 0) continue;
-			if (colorDiff(regionColor[i], regionColor[j]) > COLOR_DIFF) continue;
+			bool mergeFlag = true;
+			for (int k = 0; k < 3; k++) {
+				int mean0 = regionColor[i].val[k];
+				int mean1 = regionColor[j].val[k];
+				int var0 = regionColorVar[i].val[k];
+				int var1 = regionColorVar[j].val[k];
+				if (abs(mean0-mean1) > COLOR_THRESHOLD * (var0+var1)) {
+					mergeFlag = false;
+					break;
+				}
+			}
+
+			if (!mergeFlag) continue;
+
 			int area = 0.5 * (regionElementCount[i] + regionElementCount[j]);
-			if (contourCompletion(extendPoly[i], extendPoly[j], area) == false) continue;
+			if (checkCommanArea(extendPoly[i], extendPoly[j], area, MIN_COMMAN_AREA) == false) continue;
 
 			int pa0 = getElementHead(i, replaceHead);
 			int pa1 = getElementHead(j, replaceHead);
@@ -311,37 +263,126 @@ void mergeRegion(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor)
         if (regionBucket[i] == 1) regionBucket[i] = _regionCount++;
     }
 
-	Vec3i *_regionColor = new Vec3i[_regionCount];
-	int *regionSize = new int[_regionCount];
-	for (int i = 0; i < _regionCount; i++) {
-		_regionColor[i] =  Vec3i(0, 0, 0);
-		regionSize[i] = 0;
+	vector< vector<int> > _regionMap = vector< vector<int> >(_regionCount);
+	for (int i = 0; i < regionCount; i++) {
+		int paIdx = regionBucket[getElementHead(i, replaceHead)];
+		for (size_t j = 0; j < regionMap[i].size(); j++) {
+			_regionMap[paIdx].push_back(regionMap[i][j]);
+		}
 	}
-    for (int y = 0; y < pixelRegion.rows; y++) {
-        for (int x = 0; x < pixelRegion.cols; x++) {
 
-            int regionIdx = pixelRegion.ptr<int>(y)[x];
+	regionMap = _regionMap;
+
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
 			int newRegionIdx = regionBucket[getElementHead(regionIdx, replaceHead)];
 			pixelRegion.ptr<int>(y)[x] = newRegionIdx;
-			regionSize[newRegionIdx]++;
-			_regionColor[newRegionIdx] += regionColor[regionIdx];
-        }
-    }
+		}
+	}
 
 	regionCount = _regionCount;
-	regionColor.resize(regionCount);
-	for (int i = 0; i < regionCount; i++) {
-		regionColor[i] = _regionColor[i] / regionSize[i];
-    }
+	getRegionColor(regionColor, regionColorVar, regionCount, pixelRegion, LABImg);
 
     delete[] regionBucket;
     delete[] replaceHead;
-	delete[] regionSize;
-	delete[] _regionColor;
 
-	cout << regionCount << endl;
-	writeRegionImage(regionCount, pixelRegion, "Merge_Region.png");
+	//cout << regionCount << endl;
+	//char outputFile[100];
+	//sprintf(outputFile, "param_test/%d/merge/%s", testNum, outputName);
+	//writeRegionImageRepresent(regionCount, pixelRegion, regionColor, outputFile);
+	//writeRegionImageRepresent(regionCount, pixelRegion, regionColor, "Merge Image.png");
+
+}
+
+void buildPyramidRegion(Mat *pyramidRegion, vector< vector<int> > *pyramidMap,
+						const Mat &pixelRegion, const int &regionCount, const Mat &LABImg,
+						const vector<Vec3b> &_regionColor, const vector<Vec3b> &_regionColorVar) {
+
+	const float COLOR_THRESHOLD[PYRAMID_SIZE] = {0, 0.3, 0.6, 0.9, 1.2, 1.5, 1.8};
+	char pyramidName[100];
+	const float color_step = 0.02;
+
+	pyramidRegion[0] = pixelRegion.clone();
+	pyramidMap[0] = vector< vector<int> >(regionCount);
+	for (int i = 0; i < regionCount; i++) pyramidMap[0][i].push_back(i);
+	vector<Vec3b> regionColor = _regionColor;
+	vector<Vec3b> regionColorVar = _regionColorVar;
+
+	sprintf(pyramidName, "Pyramid_%d.png\n", 0);
+	writeRegionImageRepresent(pyramidMap[0].size(), pyramidRegion[0], regionColor, pyramidName);
+
+	for (int pyramidIdx = 1; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
+
+		pyramidRegion[pyramidIdx] = pyramidRegion[pyramidIdx-1].clone();
+		pyramidMap[pyramidIdx] = pyramidMap[pyramidIdx-1];
+
+		float color_threshold = COLOR_THRESHOLD[pyramidIdx-1] + color_step;
+		while (color_threshold <= COLOR_THRESHOLD[pyramidIdx]) {
+
+			mergeRegion(pyramidRegion[pyramidIdx], pyramidMap[pyramidIdx],
+						regionColor, regionColorVar, LABImg, color_threshold);
+			color_threshold += color_step;
+		}
+
+		sprintf(pyramidName, "Pyramid_%d.png\n", pyramidIdx);
+		writeRegionImageRepresent(pyramidMap[pyramidIdx].size(), pyramidRegion[pyramidIdx], regionColor, pyramidName);
+	}
 }
 
 #endif // MERGE
 
+//void getSpatialCorrelation(Mat &regionSpatialCorrelation, const Mat &pixelRegion, const int regionCount) {
+
+//    Point *regionCenter = new Point[regionCount];
+//    int *regionRadius = new int[regionCount];
+
+//    int *regionElementCount = new int[regionCount];
+//    vector<Point> *regionElement = new vector<Point>[regionCount];
+//    for (int i = 0; i < regionCount; i++) {
+//        regionElementCount[i] = 0;
+//        regionElement->clear();
+//    }
+//    getRegionElement(regionElement, regionElementCount, pixelRegion);
+
+//    for (int i = 0; i < regionCount; i++) {
+
+//        regionCenter[i] = Point(0, 0);
+//        for (size_t j = 0; j < regionElement[i].size(); j++) {
+//            regionCenter[i] += regionElement[i][j];
+//        }
+//        regionCenter[i].x /= regionElementCount[i];
+//        regionCenter[i].y /= regionElementCount[i];
+//    }
+
+//    for (int i = 0; i < regionCount; i++) {
+
+//        regionRadius[i] = 0;
+//        for (size_t j = 0; j < regionElement[i].size(); j++) {
+//            int distTmp = getPointDist(regionCenter[i], regionElement[i][j]);
+//            regionRadius[i] = max(regionRadius[i], distTmp);
+//        }
+//    }
+
+//    for (int i = 0; i < regionCount; i++) {
+//        for (int j = i + 1; j < regionCount; j++) {
+
+//            int centerDist = getPointDist(regionCenter[i], regionCenter[j]);
+//			if (REGION_CORRELATION * (regionRadius[i] + regionRadius[j]) >  centerDist) {
+//                regionSpatialCorrelation.ptr<uchar>(i)[j] = 1;
+//                regionSpatialCorrelation.ptr<uchar>(j)[i] = 1;
+//            } else {
+//                regionSpatialCorrelation.ptr<uchar>(i)[j] = 0;
+//                regionSpatialCorrelation.ptr<uchar>(j)[i] = 0;
+//            }
+//        }
+//    }
+
+//    delete[] regionCenter;
+//    delete[] regionRadius;
+//    delete[] regionElementCount;
+//    for (int i = 0; i < regionCount; i++) regionElement->clear();
+//    delete[] regionElement;
+
+//}

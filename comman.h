@@ -8,6 +8,8 @@
 #include <time.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <signal.h>
 #include <unistd.h>
 #include <utility>
@@ -29,18 +31,17 @@ const double PI = 3.14159265358;
 const float FLOAT_EPS = 1e-8;
 const int PIXEL_CONNECT = 8;
 const float RESIZE_RATE = 0.5;
-const int LINE_LENGTH = 10;
-const float LINE_ANGLE = -0.9845;
-const float GAUSSIAN_SIZE = 0.02;
-const float CONTRAST_BETA = 0.2;
-#define INF 2000000000
+const float STRAIGHT_LINE_ANGLE = -0.9845;
+const int PYRAMID_SIZE = 7;
 
-const int COLOR_DIFF = 20;
-const float REGION_SIZE = 0.001;
-const int REGION_CORRELATION = 2;
-const float CONTOUR_COMPLETION = 0.1;
-const float REGION_CONNECTED = 0.001;
-const float REGION_COVERING = 0.001;
+const float MIN_REGION_SIZE = 0.001;
+const int MIN_LINE_LENGTH = 10;
+const int CONVEX_EXTENSION_SIZE = 2;
+const float MIN_COMMAN_AREA = 0.5;
+const float MIN_REGION_CONNECTED = 0.001;
+const float MIN_COVERING = 0.01;
+
+#define INF 2000000000
 
 #define sqr(_x) ((_x) * (_x))
 
@@ -183,30 +184,17 @@ void init() {
 	}
 }
 
-void readImage( const char *imgName, Mat &inputImg, Mat &smoothImg, Mat &cannyImg ) {
+void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 
     inputImg = imread( imgName );
 	imwrite( "Input_Image.png", inputImg );
-	Size size = inputImg.size();
-	int cut = size.height * 0.025;
-	inputImg = inputImg(Range(cut, size.height-cut), Range(cut, size.width-cut));
-
-    Canny( inputImg, cannyImg, 100, 200 );
-	imwrite( "Canny_Image.png", cannyImg );
+	//Size size = inputImg.size();
+	//int cut = size.height * 0.025;
+	//inputImg = inputImg(Range(cut, size.height-cut), Range(cut, size.width-cut));
 
 	Mat tmpImg;
 	GaussianBlur(inputImg, tmpImg, Size(3,3), 0.5);
-	//imwrite("Smooth_Image.png", smoothImg);
-	smoothImg = tmpImg.clone();
-//	cvtColor(tmpImg, smoothImg, COLOR_RGB2Lab);
-//	Mat tmp(tmpImg.size(), CV_8UC1);
-//	for (int y = 0; y < tmp.rows; y++) {
-//		for (int x = 0; x < tmp.cols; x++) {
-//			tmp.ptr<uchar>(y)[x] = smoothImg.ptr<Vec3b>(y)[x].val[0];
-//		}
-//	}
-//	imshow("tmp", tmp);
-//	waitKey(0);
+	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
 }
 
 bool readImageFromCap( VideoCapture &cap, Mat &inputImg, Mat &cannyImg ) {
@@ -225,7 +213,7 @@ bool readImageFromCap( VideoCapture &cap, Mat &inputImg, Mat &cannyImg ) {
 	return true;
 }
 
-void writeRegionImage( const int regionCount, const Mat &pixelRegion, const char *imgName ) {
+void writeRegionImageRandom( const int regionCount, const Mat &pixelRegion, const char *imgName ) {
 
     srand( clock() );
     Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
@@ -244,9 +232,74 @@ void writeRegionImage( const int regionCount, const Mat &pixelRegion, const char
 			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = color[idx];
 		}
     }
-    //imshow( regionImgName, regionImg );
+//	imwrite(imgName, regionImg);
+//	imshow(imgName, regionImg);
+//	waitKey(0);
+}
+
+void writeRegionImageRepresent( const int regionCount, const Mat &pixelRegion, const vector<Vec3b> &regionColor, const char *imgName ) {
+
+	Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
+	for ( int y = 0; y < pixelRegion.rows; y++ ) {
+		for ( int x = 0; x < pixelRegion.cols; x++ ) {
+			int idx = pixelRegion.ptr<int>(y)[x];
+			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = regionColor[idx];
+		}
+	}
+	cvtColor(regionImg, regionImg, COLOR_Lab2RGB);
 	imwrite(imgName, regionImg);
-	imshow(imgName, regionImg);
+	//imshow(imgName, regionImg);
+	//waitKey(0);
+}
+
+void getRegionColor(vector<Vec3b> &regionColor, vector<Vec3b> &regionColorVar,
+					const int regionCount, const Mat &pixelRegion, const Mat &img) {
+
+	Vec3i *_regionColor = new Vec3i[regionCount];
+	Vec3i *_regionColorVar = new Vec3i[regionCount];
+	int *regionSize = new int[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		_regionColor[i] =  Vec3i(0, 0, 0);
+		_regionColorVar[i] =  Vec3i(0, 0, 0);
+		regionSize[i] = 0;
+	}
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			regionSize[regionIdx]++;
+			_regionColor[regionIdx] += img.ptr<Vec3b>(y)[x];
+		}
+	}
+
+	regionColor = vector<Vec3b>(regionCount);
+	regionColorVar = vector<Vec3b>(regionCount);
+
+	for (int i = 0; i < regionCount; i++) {
+		regionColor[i] = _regionColor[i] / regionSize[i];
+		regionColorVar[i] = 0;
+	}
+
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			for (int k = 0; k < 3; k++) {
+				_regionColorVar[regionIdx].val[k] +=
+						sqr(img.ptr<Vec3b>(y)[x].val[k] - regionColor[regionIdx].val[k]);
+			}
+		}
+	}
+
+	for (int i = 0; i < regionCount; i++) {
+		for (int k = 0; k < 3; k++) {
+			regionColorVar[i].val[k] = sqrt(_regionColorVar[i].val[k] / regionSize[i]);
+		}
+	}
+
+	delete[] regionSize;
+	delete[] _regionColor;
+	delete[] _regionColorVar;
+
 }
 
 //const int CONNECTED_COUNT = 10;

@@ -112,13 +112,20 @@ float getCoveringValue(float overlap0, float overlap1) {
 
 //		printf("%.3f %.3f %.5f", overlap0, overlap1, tmp);
 //		cout << endl;
-		return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
+		//return (abs(tmp) < REGION_COVERING) ? 0 : tmp;
+		return tmp;
 	}
 }
 
-void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegion,
-					 const vector<Point> *regionElement, const int *regionElementCount,
-					 const int regionCount) {
+void getRegionRelation(Mat &regionRelation, Mat &regionRoute, Mat &pixelRegion, int &regionCount) {
+
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		regionElementCount[i] = 0;
+		regionElement[i].clear();
+	}
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
 
 	Mat regionOverlap(regionCount, regionCount, CV_32SC1, Scalar(0));
 	int *convexHullArea = new int[regionCount];
@@ -156,24 +163,33 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 			float overlap0 = (float)regionOverlap.ptr<int>(i)[j] / regionElementCount[j];
 			float overlap1 = (float)regionOverlap.ptr<int>(j)[i] / regionElementCount[i];
 			regionRelation.ptr<float>(i)[j] = getCoveringValue(overlap0, overlap1);
-//			if (regionRelation.ptr<float>(i)[j] != -2) {
+			if (regionRelation.ptr<float>(i)[j] != -2) {
 //				printf("%d %d %.4lf",regionOverlap.ptr<int>(i)[j], regionOverlap.ptr<int>(j)[i], regionRelation.ptr<float>(i)[j]);
 //				cout << endl;
 //				Mat r1(pixelRegion.size(), CV_8UC3, Scalar(0));
-//				for (int y = 0; y <= r1.rows; y++) {
+//				for (int y = 0; y < r1.rows; y++) {
 //					for (int x = 0; x < r1.cols; x++) {
 //						if (pixelRegion.ptr<int>(y)[x] == i) {
-//							r1.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//							if (regionRelation.ptr<float>(i)[j] > 0) {
+//								r1.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//							} else {
+//								r1.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
+//							}
 //						}
 //						if (pixelRegion.ptr<int>(y)[x] == j) {
-//							r1.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
+//							if (regionRelation.ptr<float>(i)[j] <= 0) {
+//								r1.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//							} else {
+//								r1.ptr<Vec3b>(y)[x] = Vec3b(0, 255, 0);
+//							}
 //						}
 //					}
 //				}
-//				resize(r1, r1, Size(), 0.5, 0.5);
+
 //				imshow("region", r1);
 //				waitKey(0);
-//			}
+
+			}
 
 			if (regionRelation.ptr<float>(i)[j] == -2 ) {
 				regionRoute.ptr<int>(i)[j] = 0;
@@ -186,22 +202,25 @@ void getInitRelation(Mat &regionRelation, Mat &regionRoute, const Mat &pixelRegi
 		}
 	}
 
-	delete[] convexHullArea;
-}
-
-
-
-void getRegionRelation(Mat &regionRelation, Mat &regionRoute, Mat &pixelRegion, int &regionCount) {
-
-	int *regionElementCount = new int[regionCount];
-	vector<Point> *regionElement = new vector<Point>[regionCount];
+	vector<float> regionSaliency(regionCount, 0);
 	for (int i = 0; i < regionCount; i++) {
-		regionElementCount[i] = 0;
-		regionElement[i].clear();
+		for (int j = 0; j < regionCount; j++) {
+			if (regionRelation.ptr<float>(i)[j] < 0) {
+				regionSaliency[i] += -regionRelation.ptr<float>(i)[j] * regionElementCount[j];
+			}
+		}
 	}
-	getRegionElement(regionElement, regionElementCount, pixelRegion);
+	Mat tmp(pixelRegion.size(), CV_8UC1);
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			tmp.ptr<uchar>(y)[x] = regionSaliency[regionIdx];
+		}
+	}
+	imshow("tmp", tmp);
+	waitKey(0);
 
-	getInitRelation(regionRelation, regionRoute, pixelRegion, regionElement, regionElementCount, regionCount);
+	delete[] convexHullArea;
 	for (int i = 0; i < regionCount; i++) regionElement->clear();
 	delete[] regionElement;
 	delete[] regionElementCount;

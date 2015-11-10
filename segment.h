@@ -12,35 +12,28 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
-void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor,
-				   const Mat &cannyImg, const Mat &inputImg ) {
+void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, vector<Vec3b> &regionColorVar,
+				   const Mat &LABImg) {
 
 	// segment image
 	vector<TypeEdge> edges;
-	pixelRegion = Mat::zeros( inputImg.size(), CV_32SC1 );
+	Size imgSize = LABImg.size();
+	pixelRegion = Mat::zeros( imgSize, CV_32SC1 );
 	const int leftside[4] = {2, 3, 5, 7};
-	//const int SEGMENT_THRESHOLD = inputImg.rows * inputImg.cols / 50;
-	const int SEGMENT_THRESHOLD = 5 * max(inputImg.rows, inputImg.cols);
+	const int SEGMENT_THRESHOLD = imgSize.height + imgSize.width;
 
-	for (int y = 0; y < inputImg.rows; y++) {
-		for (int x = 0; x < inputImg.cols; x++) {
-
-//			if (y == 304 && x == 55) {
-//				cout << endl;
-//			}
-			if (cannyImg.ptr<uchar>(y)[x] == 255) continue;
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
 
 			Point nowP = Point(x, y);
 
 			for (int k = 0; k < 4; k++) {
 
 				Point newP = nowP + dxdy[leftside[k]];
-				if (isOutside(newP.x, newP.y, inputImg.cols, inputImg.rows)) continue;
+				if (isOutside(newP.x, newP.y, imgSize.width, imgSize.height)) continue;
 
-				if (cannyImg.ptr<uchar>(newP.y)[newP.x] == 255) continue;
-
-				Vec3b nowColor = inputImg.ptr<Vec3b>(nowP.y)[nowP.x];
-				Vec3b newColor = inputImg.ptr<Vec3b>(newP.y)[newP.x];
+				Vec3b nowColor = LABImg.ptr<Vec3b>(nowP.y)[nowP.x];
+				Vec3b newColor = LABImg.ptr<Vec3b>(newP.y)[newP.x];
 				int diff = colorDiff(nowColor, newColor);
 				edges.push_back(TypeEdge(nowP, newP, diff));
 			}
@@ -49,7 +42,7 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 
 	sort(edges.begin(), edges.end(), cmpTypeEdge);
 
-	int pixelCount = inputImg.rows * inputImg.cols;
+	int pixelCount = imgSize.height * imgSize.width;
 	int *regionHead = new int[pixelCount];
 	int *regionSize = new int[pixelCount];
 	float *minIntDiff = new float[pixelCount];
@@ -61,17 +54,14 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 
 	for (size_t i = 0; i < edges.size(); i++) {
 
-		int uIdx = Point2Index(edges[i].u, inputImg.cols);
-		int vIdx = Point2Index(edges[i].v, inputImg.cols);
+		int uIdx = Point2Index(edges[i].u, imgSize.width);
+		int vIdx = Point2Index(edges[i].v, imgSize.width);
 		int pu = getElementHead(uIdx, regionHead);
 		int pv = getElementHead(vIdx, regionHead);
 		if (pu == pv) continue;
 
-		//if (edges[i].w > 1) break;
-
 		if (edges[i].w <= minIntDiff[pu] && edges[i].w <= minIntDiff[pv]) {
 
-			//cout << edges[i].u << " " << edges[i].v << " " << edges[i].w << endl;
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 			minIntDiff[pu] = edges[i].w + getMinIntDiff(SEGMENT_THRESHOLD, regionSize[pu]);
@@ -80,30 +70,43 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 
 	delete[] minIntDiff;
 
+	int minRegionSize = MIN_REGION_SIZE * (imgSize.height * imgSize.width);
+
+	for (size_t i = 0; i < edges.size(); i++) {
+
+		int uIdx = Point2Index(edges[i].u, imgSize.width);
+		int vIdx = Point2Index(edges[i].v, imgSize.width);
+		int pu = getElementHead(uIdx, regionHead);
+		int pv = getElementHead(vIdx, regionHead);
+		if (pu == pv) continue;
+
+		if (regionSize[pu] < minRegionSize || regionSize[pv] < minRegionSize) {
+			regionHead[pv] = pu;
+			regionSize[pu] += regionSize[pv];
+		}
+	}
+
 	// get main region
 	int idx = 0;
 	regionCount = 0;
-	int minRegionSize = REGION_SIZE * (inputImg.rows * inputImg.cols);
+
 	int *regionIndex = new int[pixelCount];
 	for (int i = 0; i < pixelCount; i++) regionIndex[i] = -1;
 
-	for (int y = 0; y < inputImg.rows; y++) {
-		for (int x = 0; x < inputImg.cols; x++) {
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
 
 			int pIdx = getElementHead(idx, regionHead);
-			if (regionSize[pIdx] < minRegionSize) {
-				pixelRegion.ptr<int>(y)[x] = -1;
+			if (regionIndex[pIdx] == -1) {
+				pixelRegion.ptr<int>(y)[x] = regionCount;
+				regionIndex[pIdx] = regionCount++;
 			} else {
-				if (regionIndex[pIdx] == -1) {
-					pixelRegion.ptr<int>(y)[x] = regionCount;
-					regionIndex[pIdx] = regionCount++;
-				} else {
-					pixelRegion.ptr<int>(y)[x] = regionIndex[pIdx];
-				}
+				pixelRegion.ptr<int>(y)[x] = regionIndex[pIdx];
 			}
 			idx++;
 		}
 	}
+
 	delete[] regionHead;
 	delete[] regionIndex;
 	delete[] regionSize;
@@ -111,68 +114,44 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	//writeRegionImage(regionCount, pixelRegion, "Segment_Init.png");
 
 	// get region represent color
-	Vec3i *_regionColor = new Vec3i[regionCount];
-	regionSize = new int[regionCount];
-	for (int i = 0; i < regionCount; i++) {
-		_regionColor[i] = Vec3i(0, 0, 0);
-		regionSize[i] = 0;
-	}
+	getRegionColor(regionColor, regionColorVar, regionCount, pixelRegion, LABImg);
 
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
+	//cout << regionCount << endl;
 
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			if (regionIdx != -1) {
-				_regionColor[regionIdx] += inputImg.ptr<Vec3b>(y)[x];
-				regionSize[regionIdx]++;
-			}
-		}
-	}
-
-	regionColor = vector<Vec3b>(regionCount);
-
-	for (int i = 0; i < regionCount; i++) {
-		for (int k = 0; k < 3; k++) {
-			regionColor[i].val[k] = _regionColor[i].val[k] / regionSize[i];
-		}
-	}
-
-	delete[] _regionColor;
-	delete[] regionSize;
-
-	// cluster small regions
-	TypeQue<Point> &que = *(new TypeQue<Point>);
-	for ( int y = 0; y < pixelRegion.rows; y++ ) {
-		for ( int x = 0; x < pixelRegion.cols; x++ ) {
-			if ( pixelRegion.ptr<int>( y )[x] != -1 ) que.push( Point( x, y ) );
-		}
-	}
-
-	while ( !que.empty() ) {
-
-		Point nowP = que.front();
-		que.pop();
-
-		int regionIdx = pixelRegion.ptr<int>(nowP.y)[nowP.x];
-
-			for ( int k = 0; k < PIXEL_CONNECT; k++ ) {
-
-			Point newP = nowP + dxdy[k];
-
-			if ( isOutside( newP.x, newP.y, pixelRegion.cols, pixelRegion.rows ) ) continue;
-			if ( pixelRegion.ptr<int>( newP.y )[newP.x] != -1 ) continue;
-
-			pixelRegion.ptr<int>( newP.y )[newP.x] = regionIdx;
-			que.push( Point( newP.x, newP.y ) );
-		}
-	}
-
-	delete &que;
-
-	cout << regionCount << endl;
-
-	writeRegionImage(regionCount, pixelRegion, "Segment_Region.png");
+	char outputFile[100];
+	sprintf(outputFile, "param_test/%d/seg/%s", 0, "0.png");
+	writeRegionImageRandom(regionCount, pixelRegion, outputFile);
+	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png");
 
 }
 
 #endif // SEGMENT_H
+
+//	// cluster small regions
+//	TypeQue<Point> &que = *(new TypeQue<Point>);
+//	for ( int y = 0; y < pixelRegion.rows; y++ ) {
+//		for ( int x = 0; x < pixelRegion.cols; x++ ) {
+//			if ( pixelRegion.ptr<int>( y )[x] != -1 ) que.push( Point( x, y ) );
+//		}
+//	}
+
+//	while ( !que.empty() ) {
+
+//		Point nowP = que.front();
+//		que.pop();
+
+//		int regionIdx = pixelRegion.ptr<int>(nowP.y)[nowP.x];
+
+//			for ( int k = 0; k < PIXEL_CONNECT; k++ ) {
+
+//			Point newP = nowP + dxdy[k];
+
+//			if ( isOutside( newP.x, newP.y, pixelRegion.cols, pixelRegion.rows ) ) continue;
+//			if ( pixelRegion.ptr<int>( newP.y )[newP.x] != -1 ) continue;
+
+//			pixelRegion.ptr<int>( newP.y )[newP.x] = regionIdx;
+//			que.push( Point( newP.x, newP.y ) );
+//		}
+//	}
+
+//	delete &que;

@@ -2,6 +2,7 @@
 #define LAYERS_H
 
 #include "comman.h"
+#include "type_tarjan.h"
 
 void mergeRegionOverlapCycle(Mat &regionRelation, Mat &regionRoute,
 							  Mat &pixelRegion, int &regionCount) {
@@ -82,97 +83,97 @@ void getRegionLayer(int *regionLayer, Mat &regionRelation, Mat &regionRoute, Mat
 
 	getLocalRelation(regionRelation, regionRoute);
 
-    TypeQue<int> &que = *(new TypeQue<int>);
+	TypeQue<int> &que = *(new TypeQue<int>);
 
-    int *low_layer = new int[regionCount];
-    int *below = new int[regionCount];
-    for (int i = 0; i < regionCount; i++) {
-        low_layer[i] = -1;
-        below[i] = 0;
-    }
-    for (int i = 0; i < regionCount; i++) {
+	int *low_layer = new int[regionCount];
+	int *below = new int[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		low_layer[i] = -1;
+		below[i] = 0;
+	}
+	for (int i = 0; i < regionCount; i++) {
 
-        for (int j = 0; j < regionCount; j++) {
+		for (int j = 0; j < regionCount; j++) {
 
-            if (regionRoute.ptr<int>(i)[j] == 0) continue;
+			if (regionRoute.ptr<int>(i)[j] == 0) continue;
 			if (regionRelation.ptr<float>(i)[j] < 0) below[i]++;
-        }
-        if (below[i] == 0) {
-            low_layer[i] = 0;
-            que.push(i);
-        }
-    }
+		}
+		if (below[i] == 0) {
+			low_layer[i] = 0;
+			que.push(i);
+		}
+	}
 
 	//for (int i = 0; i < regionCount; i++) cout << below[i] << endl;
 
-    while ( !que.empty() ) {
+	while ( !que.empty() ) {
 
-        int idx = que.front();
-        que.pop();
+		int idx = que.front();
+		que.pop();
 
-        for (int i = 0; i < regionCount; i++) {
+		for (int i = 0; i < regionCount; i++) {
 
-            if (regionRoute.ptr<int>(i)[idx] == 0) continue;
+			if (regionRoute.ptr<int>(i)[idx] == 0) continue;
 			if (regionRelation.ptr<float>(i)[idx] < 0) {
-                below[i]--;
-                if (below[i] == 0) {
-                    low_layer[i] = low_layer[idx] + 1;
-                    que.push(i);
-                }
-            }
-        }
-    }
+				below[i]--;
+				if (below[i] == 0) {
+					low_layer[i] = low_layer[idx] + 1;
+					que.push(i);
+				}
+			}
+		}
+	}
 
-    delete[] below;
-    que.clear();
+	delete[] below;
+	que.clear();
 
-    int *high_layer = new int[regionCount];
-    int *above = new int[regionCount];
-    for (int i = 0; i < regionCount; i++) {
+	int *high_layer = new int[regionCount];
+	int *above = new int[regionCount];
+	for (int i = 0; i < regionCount; i++) {
 
-        above[i] = 0;
-        high_layer[i] = INF;
+		above[i] = 0;
+		high_layer[i] = INF;
 
-        for (int j = 0; j < regionCount; j++) {
+		for (int j = 0; j < regionCount; j++) {
 
-            if (regionRoute.ptr<int>(i)[j] == 0) continue;
+			if (regionRoute.ptr<int>(i)[j] == 0) continue;
 			if (regionRelation.ptr<float>(i)[j] > 0) above[i]++;
-        }
-        if (above[i] == 0) {
-            que.push(i);
-            high_layer[i] = low_layer[i];
-        }
-    }
+		}
+		if (above[i] == 0) {
+			que.push(i);
+			high_layer[i] = low_layer[i];
+		}
+	}
 
-    //for (int i = 0; i < regionCount; i++) cout << above[i] << endl;
-    while (!que.empty()) {
+	//for (int i = 0; i < regionCount; i++) cout << above[i] << endl;
+	while (!que.empty()) {
 
-        int idx = que.front();
-        que.pop();
+		int idx = que.front();
+		que.pop();
 
-        for (int i = 0; i < regionCount; i++) {
+		for (int i = 0; i < regionCount; i++) {
 
-            if (regionRoute.ptr<int>(i)[idx] == 0) continue;
+			if (regionRoute.ptr<int>(i)[idx] == 0) continue;
 
 			if (regionRelation.ptr<float>(i)[idx] > 0) {
-                high_layer[i] = min(high_layer[i], high_layer[idx] - 1);
-                above[i]--;
-                if (above[i] == 0) {
-                    que.push(i);
-                }
-            }
-        }
-    }
+				high_layer[i] = min(high_layer[i], high_layer[idx] - 1);
+				above[i]--;
+				if (above[i] == 0) {
+					que.push(i);
+				}
+			}
+		}
+	}
 
-    delete[] above;
+	delete[] above;
 	delete &que;
 
-    for (int i = 0; i < regionCount; i++) {
-        regionLayer[i] = (high_layer[i]+low_layer[i]) / 2;
-    }
+	for (int i = 0; i < regionCount; i++) {
+		regionLayer[i] = (high_layer[i]+low_layer[i]) / 2;
+	}
 
-    delete[] low_layer;
-    delete[] high_layer;
+	delete[] low_layer;
+	delete[] high_layer;
 
 	for (int i = 0; i < regionCount; i++) {
 
