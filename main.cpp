@@ -1,32 +1,11 @@
 #include "comman.h"
 #include "segment.h"
 #include "merge.h"
-//#include "relation.h"
-#include "layers.h"
-#include "depth.h"
-#include "saliency.h"
-#include "retarget.h"
 #include "graph.h"
+#include "saliency.h"
+#include "evaluate.h"
 
 int main(int args, char **argv) {
-
-	//init();
-
-//	Mat a = Mat(2,2,CV_64FC1);
-//	a.ptr<double>(0)[0] = 4;
-//	a.ptr<double>(0)[1] = 7;
-//	a.ptr<double>(1)[0] = 7;
-//	a.ptr<double>(1)[1] = 4;
-//	Mat val, vec;
-//	eigen(a, val, vec);
-//	cout << val << endl;
-//	cout << vec << endl;
-//	cout << "=========" << endl;
-//	cout << a << endl;
-//	cout << vec.col(0) << endl;
-//	cout << val.ptr<double>(0)[0] << endl;
-//	cout << a * vec.col(0) << endl;
-//	cout << val.ptr<double>(0)[0] * vec.col(0) << endl;
 
 	FILE *testConfig = fopen("test_config.txt", "w");
 	int testNum = 0;
@@ -39,28 +18,32 @@ int main(int args, char **argv) {
 //						PARAM4_COLOR_DIFF, PARAM5_CONTOUR_COMPLETION);
 //		cout << endl;
 
-		char param_dir[100];
-		sprintf(param_dir, "param_test/%d/", testNum);
-		remove(param_dir);
-		mkdir(param_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		sprintf(param_dir, "param_test/%d/seg", testNum);
-		remove(param_dir);
-		mkdir(param_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-		sprintf(param_dir, "param_test/%d/merge", testNum);
-		remove(param_dir);
-		mkdir(param_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+		char dirName[100] = "test/binaryimg";
+		//sprintf(dirName, "test/MSRA_B/%s", argv[1]);
 
-		DIR *testDir = opendir("test/MSRA_B/3/");
+		char fileNameFormat[100];
+		memset(fileNameFormat, 0, sizeof(fileNameFormat));
+		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
+		strcat(fileNameFormat, "/%s");
+
+//		map<string, Rect> userData;
+//		getUserData_MSRA(userData, argv[1]);
+
+		map<string, Mat> binaryMask;
+		getUserData_1000(binaryMask, "test/binarymask");
+
+		vector<double> precision, recall;
+		DIR *testDir = opendir(dirName);
 		dirent *testFile;
+		FILE *resultFile = fopen("result.txt", "w");
 
 		while ((testFile = readdir(testDir)) != NULL) {
 
+			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			cout << testFile->d_name << endl;
 
-			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
-
 			char inputImgName[100];
-			sprintf(inputImgName, "test/MSRA_B/3/%s", testFile->d_name);
+			sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
 			Mat inputImg, LABImg;
 			readImage(inputImgName, inputImg, LABImg);
@@ -68,49 +51,48 @@ int main(int args, char **argv) {
 			Mat pixelRegion;
 			int regionCount = 0;
 			vector<Vec3b> regionColor;
-			vector<Vec3b> regionColorVar;
-			segmentImage(pixelRegion, regionCount, regionColor, regionColorVar, LABImg);
+			segmentImage(pixelRegion, regionCount, regionColor, LABImg);
 
 			vector< vector<int> > *pyramidMap = new vector< vector<int> >[PYRAMID_SIZE];
 			Mat *pyramidRegion = new Mat[PYRAMID_SIZE];
-			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor, regionColorVar);
+			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor);
 
 			Mat W, D;
-			vector<int> frontRegion;
-			double GAMA = 0.2;
-			buildRegionGraph(W, D, frontRegion, pyramidRegion, pyramidMap, regionColor, GAMA);
+			double GAMA = 1.1;
+			buildRegionGraph(W, D, pyramidRegion, pyramidMap, regionColor, GAMA);
 			delete[] pyramidMap;
 			delete[] pyramidRegion;
 
 			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, W, D, frontRegion, pixelRegion);
+			getSaliencyMap(saliencyMap, W, D, pixelRegion);
 
-//			Mat regionRelation, regionRoute;
-//			getRegionRelation(regionRelation, regionRoute, pyramidRegion, pyramidMap);
+			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
+			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
 
-//			int *regionLayer = new int[regionCount];
-//			getRegionLayer(regionLayer, regionRelation, regionRoute, pixelRegion, regionCount);
+			double sum1 = 0;
+			double sum2 = 0;
+			for (size_t i = 0; i < precision.size(); i++) {
+				sum1 += precision[i];
+				sum2 += recall[i];
+			}
 
-//			Mat depthMap;
-//			getDepthMap(depthMap, inputImg, pixelRegion, regionLayer, regionCount);
+			cout << " total " << sum1 / precision.size() << " " << sum2 / recall.size() << endl;
 
-//			imshow("input", inputImg);
-//			imshow("depth", depthMap);
-//			waitKey(1);
-
-
-		//	imshow("saliency", saliencyMap);
-			waitKey(0);
-			//Mat resizeImg;
-			//retargetImage(resizeImg, inputImg, pixelRegion, regionLayer, regionCount);
-			//delete[] regionLayer;
-		//}
-
+			waitKey(200);
 		}
 
+		double sum1 = 0;
+		double sum2 = 0;
+		for (size_t i = 0; i < precision.size(); i++) {
+			sum1 += precision[i];
+			sum2 += recall[i];
+		}
+
+		fprintf(resultFile, "\ntotal %.5lf %.5lf\n", sum1 / precision.size(), sum2 / recall.size());
+
+		fclose(resultFile);
+
 		testNum++;
-		//resize(inputImg, inputImg, Size(), 0.5, 0.5);
-		//resize(resizeImg, resizeImg, Size(), 0.5, 0.5);
 
 	fclose(testConfig);
 
