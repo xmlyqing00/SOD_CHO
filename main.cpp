@@ -7,19 +7,19 @@
 
 int main(int args, char **argv) {
 
-	FILE *testConfig = fopen("test_config.txt", "w");
-	int testNum = 0;
+	FILE *testConfig = fopen("test_config.txt", "a");
+	int testNum = 42;
 
-//		fprintf(testConfig, "%d\t%.2f\t%.8lf\t%d\t%d\t%.2f\n", testNum,
-//				PARAM1_SEGMENT_THRESHOLD, PARAM2_REGION_SIZE, PARAM3_PARAM3_LINE_LENGTH,
-//				PARAM4_COLOR_DIFF, PARAM5_CONTOUR_COMPLETION);
-//		printf( "%d\t%.2f\t%.8lf\t%d\t%d\t%.2f", testNum,
-//						PARAM1_SEGMENT_THRESHOLD, PARAM2_REGION_SIZE, PARAM3_PARAM3_LINE_LENGTH,
-//						PARAM4_COLOR_DIFF, PARAM5_CONTOUR_COMPLETION);
-//		cout << endl;
+	for (double GAMA = 1.05; GAMA < 1.8; GAMA += 0.05) {
+	for (double PARAM1 = 0.0; PARAM1 <= 1; PARAM1 += 0.2) {
+	for (double PARAM2 = 0.0; PARAM2 <= 1; PARAM2 += 0.2) {
 
-		char dirName[100] = "test/binaryimg";
-		//sprintf(dirName, "test/MSRA_B/%s", argv[1]);
+		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%.3lf\n", testNum, GAMA, PARAM1, PARAM2);
+		printf("%d\t%.3lf\t%.3lf\t%.3lf", testNum, GAMA, PARAM1, PARAM2);
+		cout << endl;
+
+		char dirName[100];
+		sprintf(dirName, "test/%s", argv[1]);
 
 		char fileNameFormat[100];
 		memset(fileNameFormat, 0, sizeof(fileNameFormat));
@@ -36,11 +36,14 @@ int main(int args, char **argv) {
 		DIR *testDir = opendir(dirName);
 		dirent *testFile;
 		FILE *resultFile = fopen("result.txt", "w");
+		int fileNum = 0;
 
 		while ((testFile = readdir(testDir)) != NULL) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
-			cout << testFile->d_name << endl;
+			fileNum++;
+			if (fileNum == 101) break;
+			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
 			sprintf(inputImgName, fileNameFormat, testFile->d_name);
@@ -58,8 +61,7 @@ int main(int args, char **argv) {
 			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor);
 
 			Mat W, D;
-			double GAMA = 1.1;
-			buildRegionGraph(W, D, pyramidRegion, pyramidMap, regionColor, GAMA);
+			buildRegionGraph(W, D, pyramidRegion, pyramidMap, regionColor, GAMA, PARAM1, PARAM2);
 			delete[] pyramidMap;
 			delete[] pyramidRegion;
 
@@ -76,9 +78,14 @@ int main(int args, char **argv) {
 				sum2 += recall[i];
 			}
 
-			cout << " total " << sum1 / precision.size() << " " << sum2 / recall.size() << endl;
+			sum1 = sum1 / precision.size();
+			sum2 = sum2 / recall.size();
 
-			waitKey(200);
+			cout << " total " << sum1 << " " << sum2 << endl;
+
+#ifdef SHOW_IMAGE
+				waitKey(100);
+#endif
 		}
 
 		double sum1 = 0;
@@ -87,12 +94,25 @@ int main(int args, char **argv) {
 			sum1 += precision[i];
 			sum2 += recall[i];
 		}
+		sum1 = sum1 / precision.size();
+		sum2 = sum2 / recall.size();
 
-		fprintf(resultFile, "\ntotal %.5lf %.5lf\n", sum1 / precision.size(), sum2 / recall.size());
+		fprintf(testConfig, "precision %.3lf\t recall %.3lf\n", sum1, sum2);
 
+		fprintf(resultFile, "\ntotal %.5lf %.5lf\n", sum1, sum2);
 		fclose(resultFile);
 
+		char logName[100];
+		sprintf(logName, "logs/%d_%d_%d.txt", (int)(sum1*10000), (int)(sum2*10000), testNum);
+		FILE *logFile = fopen(logName, "w");
+		fprintf(logFile, "%d\t%.3lf\t%.3lf\t%.3lf\n", testNum, GAMA, PARAM1, PARAM2);
+		fclose(logFile);
+
 		testNum++;
+
+	}
+	}
+	}
 
 	fclose(testConfig);
 

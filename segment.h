@@ -120,7 +120,6 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	char outputFile[100];
 	sprintf(outputFile, "param_test/%d/seg/%s", 0, "0.png");
 	writeRegionImageRandom(regionCount, pixelRegion, outputFile, 0, 1);
-	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png", 1, 0);
 
 }
 

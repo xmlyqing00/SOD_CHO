@@ -195,7 +195,9 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
     inputImg = imread( imgName );
 	inputImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 	imwrite("Input_Image.png", inputImg);
-	imshow("Input_Image.png", inputImg);
+#ifdef SHOW_IMAGE
+		imshow("Input_Image.png", inputImg);
+#endif
 
 	Mat tmpImg;
 	GaussianBlur(inputImg, tmpImg, Size(3,3), 0.5);

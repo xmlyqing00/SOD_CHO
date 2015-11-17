@@ -244,7 +244,7 @@ void getRegionRelation(Mat &relation, const Mat &regionNeighbour, const Mat &tmp
 }
 
 void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< vector<int> > *pyramidMap,
-					  const vector<Vec3b> &regionColor, const double GAMA) {
+					  const vector<Vec3b> &regionColor, const double GAMA, const double PARAM1, const double PARAM2) {
 
 	int baseRegionCount = pyramidMap[0].size();
 	W = Mat(baseRegionCount, baseRegionCount, CV_64FC1, Scalar(0));
@@ -318,6 +318,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 		Mat regionNeighbour;
 		getRegionNeighbour(regionNeighbour, pyramidRegion[pyramidIdx], regionCount);
 
+		// increase neighbour region c
 		for (int i = 0; i < regionCount; i++) {
 
 			vector<int> convexhullRegion;
@@ -408,6 +409,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
 			double w = pow(e, -(double)colorDiff(regionColor[i], regionColor[j]) / 20);
+			//cout << w << " " << colorDiff(regionColor[i], regionColor[j]) << endl;
 			W.ptr<double>(i)[j] = w;
 		}
 	}
@@ -422,7 +424,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
 			double d = pow(e, -(double)regionDist.ptr<int>(i)[j] / width);
-			d = 0.5 + 0.5*d;
+			d = PARAM1 + (1-PARAM1)*d;
 			//cout << d << endl;
 			W.ptr<double>(i)[j] *= d;
 		}
@@ -444,7 +446,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
 			double size = pow(e, -(double)regionElementCount[i]*regionElementCount[j]/sizeSigma);
-			size = 0.5 + 0.5*size;
+			size = PARAM2 + (1-PARAM2)*size;
 			//cout << size << endl;
 			W.ptr<double>(i)[j] *= size;
 		}
@@ -455,7 +457,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	// update W with c
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
-			W.ptr<double>(i)[j] = W.ptr<double>(i)[j] * pow(1+GAMA, c.ptr<int>(i)[j]);
+			W.ptr<double>(i)[j] = W.ptr<double>(i)[j] * pow(GAMA, c.ptr<int>(i)[j]);
 			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
 		}
 	}

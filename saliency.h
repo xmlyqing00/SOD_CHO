@@ -2,6 +2,7 @@
 #define SALIENCY_H
 
 #include "comman.h"
+#include "type_que.h"
 
 void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
 
@@ -78,31 +79,61 @@ void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
 	}
 
 	int partArea[2], hullArea[2];
+	Mat visited(pixelRegion.size(), CV_8UC1, Scalar(0));
+	TypeQue<Point> &que = *(new TypeQue<Point>);
+
 	for (int regionFlag = 0; regionFlag < 2; regionFlag++) {
 
-		vector<Point> pixelPart;
+		partArea[regionFlag] = 0;
+		hullArea[regionFlag] = 0;
+
 		for (int y = 0; y < pixelRegion.rows; y++) {
 			for (int x = 0; x < pixelRegion.cols; x++) {
-				if (regionTag[pixelRegion.ptr<int>(y)[x]] == regionFlag) {
-					pixelPart.push_back(Point(x,y));
+
+				if (regionTag[pixelRegion.ptr<int>(y)[x]] != regionFlag) continue;
+				if (visited.ptr<uchar>(y)[x] == 1) continue;
+
+				que.clear();
+				que.push(Point(x,y));
+				visited.ptr<uchar>(y)[x] = 1;
+				vector<Point> pixelPart;
+
+				while (!que.empty()) {
+
+					Point nowP = que.front();
+					que.pop();
+					pixelPart.push_back(nowP);
+					partArea[regionFlag]++;
+
+					for (int k = 0; k < PIXEL_CONNECT; k++) {
+
+						Point newP = nowP + dxdy[k];
+						if (isOutside(newP.x, newP.y, pixelRegion.cols, pixelRegion.rows)) continue;
+						if (visited.ptr<uchar>(newP.y)[newP.x] == 1) continue;
+						if (regionTag[pixelRegion.ptr<int>(newP.y)[newP.x]] != regionFlag) continue;
+
+						visited.ptr<uchar>(newP.y)[newP.x] = 1;
+						que.push(newP);
+					}
+
 				}
+
+				vector<Point> pixelHull;
+				convexHull(pixelPart, pixelHull);
+
+				Mat hullAreaMap(pixelRegion.size(), CV_8UC1, Scalar(0));
+				fillConvexPoly(hullAreaMap, pixelHull, Scalar(255));
+				hullArea[regionFlag] += sum(hullAreaMap).val[0];
+
 			}
 		}
-
-		partArea[regionFlag] = pixelPart.size();
-
-		vector<Point> pixelHull;
-		convexHull(pixelPart, pixelHull);
-
-		Mat hullAreaMap(pixelRegion.size(), CV_8UC1, Scalar(0));
-		fillConvexPoly(hullAreaMap, pixelHull, Scalar(255));
-		hullArea[regionFlag] = sum(hullAreaMap).val[0] - partArea[regionFlag];
-
 	}
 
+	delete &que;
+
 	double overlap[2];
-	overlap[0] = (double)hullArea[0] / partArea[1];
-	overlap[1] = (double)hullArea[1] / partArea[0];
+	overlap[0] = (double)(hullArea[0] - partArea[0]) / partArea[1];
+	overlap[1] = (double)(hullArea[1] - partArea[1]) / partArea[0];
 	if (overlap[0] < overlap[1]) {
 		for (int i = 0; i < n; i++) regionTag[i] = 1 - regionTag[i];
 	}
@@ -117,8 +148,9 @@ void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
 	}
 
 	delete[] regionTag;
-
+#ifdef SHOW_IMAGE
 	imshow("Saliency_Map", saliencyMap);
+#endif
 	imwrite("Saliency_Map.png", saliencyMap);
 
 }
