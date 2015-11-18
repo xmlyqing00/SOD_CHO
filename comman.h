@@ -1,6 +1,8 @@
 #ifndef COMMAN_H
 #define COMMAN_H
 
+#define SHOW_IMAGE
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -111,7 +113,7 @@ int float2sign(const double &f) {
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
 	int diffRes = 0;
-	for ( int i = 0; i < 2; i++ ) diffRes += sqr( p0.val[i] - p1.val[i] );
+	for ( int i = 0; i < 3; i++ ) diffRes += sqr( p0.val[i] - p1.val[i] );
 	return cvRound(sqrt(diffRes));
 
 }
@@ -193,14 +195,14 @@ void init() {
 void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 
     inputImg = imread( imgName );
-	inputImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 	imwrite("Input_Image.png", inputImg);
 #ifdef SHOW_IMAGE
-		imshow("Input_Image.png", inputImg);
+	imshow("Input_Image.png", inputImg);
 #endif
 
 	Mat tmpImg;
-	GaussianBlur(inputImg, tmpImg, Size(3,3), 0.5);
+	tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
+	GaussianBlur(tmpImg, tmpImg, Size(3,3), 0.5);
 	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
 }
 

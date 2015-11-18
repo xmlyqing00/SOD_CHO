@@ -8,11 +8,11 @@
 int main(int args, char **argv) {
 
 	FILE *testConfig = fopen("test_config.txt", "a");
-	int testNum = 42;
+	int testNum = 0;
 
-	for (double GAMA = 1.05; GAMA < 1.8; GAMA += 0.05) {
-	for (double PARAM1 = 0.0; PARAM1 <= 1; PARAM1 += 0.2) {
-	for (double PARAM2 = 0.0; PARAM2 <= 1; PARAM2 += 0.2) {
+	for (double GAMA = 1.15; GAMA <= 1.15; GAMA += 0.05) {
+	for (double PARAM1 = 0.6; PARAM1 <= 0.6; PARAM1 += 0.2) {
+	for (double PARAM2 = 0.8; PARAM2 <= 0.8; PARAM2 += 0.2) {
 
 		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%.3lf\n", testNum, GAMA, PARAM1, PARAM2);
 		printf("%d\t%.3lf\t%.3lf\t%.3lf", testNum, GAMA, PARAM1, PARAM2);
@@ -71,6 +71,16 @@ int main(int args, char **argv) {
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
 
+			if (precision.back() < 0.7) {
+				char fileName[100];
+				sprintf(fileName, "test/negative/%s", testFile->d_name);
+				imwrite(fileName, inputImg);
+			} else {
+				char fileName[100];
+				sprintf(fileName, "test/positive/%s", testFile->d_name);
+				imwrite(fileName, inputImg);
+			}
+
 			double sum1 = 0;
 			double sum2 = 0;
 			for (size_t i = 0; i < precision.size(); i++) {
@@ -84,7 +94,7 @@ int main(int args, char **argv) {
 			cout << " total " << sum1 << " " << sum2 << endl;
 
 #ifdef SHOW_IMAGE
-				waitKey(100);
+			waitKey(0);
 #endif
 		}
 

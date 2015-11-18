@@ -6,6 +6,20 @@
 
 void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
 
+//	saliencyMap = Mat(pixelRegion.size(), CV_64FC1);
+//	for (int y = 0; y < saliencyMap.rows; y++) {
+//		for (int x = 0; x < saliencyMap.cols; x++) {
+//			int regionIdx = pixelRegion.ptr<int>(y)[x];
+//			saliencyMap.ptr<double>(y)[x] = D.ptr<double>(regionIdx)[regionIdx];
+//		}
+//	}
+
+//	normalize(saliencyMap, saliencyMap, 0, 1, CV_MINMAX);
+//	saliencyMap.convertTo(saliencyMap, CV_8UC1, 255);
+//	imshow("Saliency_Map", saliencyMap);
+
+//	return;
+
 	int n = W.rows;
 	Mat D_sqrt;
 	sqrt(D, D_sqrt);

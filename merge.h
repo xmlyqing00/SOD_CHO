@@ -302,7 +302,7 @@ void buildPyramidRegion(Mat *pyramidRegion, vector< vector<int> > *pyramidMap,
 						const Mat &pixelRegion, const int &regionCount, const Mat &LABImg,
 						const vector<Vec3b> &_regionColor) {
 
-	int COLOR_THRESHOLD[PYRAMID_SIZE] = {0, 6, 12, 18, 24, 30, 36};
+	int COLOR_THRESHOLD[PYRAMID_SIZE] = {0, 10, 22, 36, 52, 70, 90};
 	char pyramidName[100];
 	const int color_step = 1;
 
