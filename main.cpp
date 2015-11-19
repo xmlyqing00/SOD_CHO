@@ -10,12 +10,12 @@ int main(int args, char **argv) {
 	FILE *testConfig = fopen("test_config.txt", "a");
 	int testNum = 0;
 
-	for (double GAMA = 1.15; GAMA <= 1.15; GAMA += 0.05) {
-	for (double PARAM1 = 0.6; PARAM1 <= 0.6; PARAM1 += 0.2) {
-	for (double PARAM2 = 0.8; PARAM2 <= 0.8; PARAM2 += 0.2) {
+	for (double GAMA = 1.1; GAMA <= 1.3; GAMA += 0.1) {
+	for (double PARAM1 = 10; PARAM1 <= 10; PARAM1 += 10) {
+	for (int PARAM2 = 200; PARAM2 <= 400; PARAM2 += 50) {
 
-		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%.3lf\n", testNum, GAMA, PARAM1, PARAM2);
-		printf("%d\t%.3lf\t%.3lf\t%.3lf", testNum, GAMA, PARAM1, PARAM2);
+		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
+		printf("%d\t%.3lf\t%.3lf\t%d", testNum, GAMA, PARAM1, PARAM2);
 		cout << endl;
 
 		char dirName[100];
@@ -42,7 +42,7 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 101) break;
+			//if (fileNum == 101) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -58,7 +58,7 @@ int main(int args, char **argv) {
 
 			vector< vector<int> > *pyramidMap = new vector< vector<int> >[PYRAMID_SIZE];
 			Mat *pyramidRegion = new Mat[PYRAMID_SIZE];
-			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor);
+			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor, PARAM1);
 
 			Mat W, D;
 			buildRegionGraph(W, D, pyramidRegion, pyramidMap, regionColor, GAMA, PARAM1, PARAM2);
@@ -71,6 +71,24 @@ int main(int args, char **argv) {
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
 
+#ifdef POS_NEG_RESULT_OUTPUR
+			Mat tmpMap;
+
+			cvtColor(LABImg, tmpMap, COLOR_RGB2Lab);
+			Mat resultMap(tmpMap.rows, tmpMap.cols*3, CV_8UC3);
+			tmpMap.copyTo(resultMap(Rect(0, 0, tmpMap.cols, tmpMap.rows)));
+
+			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2RGB);
+			tmpMap.copyTo(resultMap(Rect(tmpMap.cols, 0, tmpMap.cols, tmpMap.rows)));
+
+			cvtColor(binaryMask[string(testFile->d_name)], tmpMap, COLOR_GRAY2RGB);
+			tmpMap.copyTo(resultMap(Rect(tmpMap.cols*2, 0, tmpMap.cols, tmpMap.rows)));
+
+			char fileName[100];
+			sprintf(fileName, "test/result/%04d_%s.png", (int)(precision.back()*10000), testFile->d_name);
+			imwrite(fileName, resultMap);
+			imwrite("Result_Image.png", resultMap);
+
 			if (precision.back() < 0.7) {
 				char fileName[100];
 				sprintf(fileName, "test/negative/%s", testFile->d_name);
@@ -80,6 +98,7 @@ int main(int args, char **argv) {
 				sprintf(fileName, "test/positive/%s", testFile->d_name);
 				imwrite(fileName, inputImg);
 			}
+#endif
 
 			double sum1 = 0;
 			double sum2 = 0;
@@ -115,7 +134,7 @@ int main(int args, char **argv) {
 		char logName[100];
 		sprintf(logName, "logs/%d_%d_%d.txt", (int)(sum1*10000), (int)(sum2*10000), testNum);
 		FILE *logFile = fopen(logName, "w");
-		fprintf(logFile, "%d\t%.3lf\t%.3lf\t%.3lf\n", testNum, GAMA, PARAM1, PARAM2);
+		fprintf(logFile, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
 		fclose(logFile);
 
 		testNum++;

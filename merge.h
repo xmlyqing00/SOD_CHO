@@ -300,9 +300,10 @@ void mergeRegion(Mat &pixelRegion, vector< vector<int> > &regionMap, vector<Vec3
 
 void buildPyramidRegion(Mat *pyramidRegion, vector< vector<int> > *pyramidMap,
 						const Mat &pixelRegion, const int &regionCount, const Mat &LABImg,
-						const vector<Vec3b> &_regionColor) {
+						const vector<Vec3b> &_regionColor, const int PARAM2) {
 
-	int COLOR_THRESHOLD[PYRAMID_SIZE] = {0, 10, 22, 36, 52, 70, 90};
+	int COLOR_THRESHOLD[PYRAMID_SIZE];
+	for (int i = 0; i < PYRAMID_SIZE; i++) COLOR_THRESHOLD[i] = i * PARAM2;
 	char pyramidName[100];
 	const int color_step = 1;
 
@@ -311,8 +312,10 @@ void buildPyramidRegion(Mat *pyramidRegion, vector< vector<int> > *pyramidMap,
 	for (int i = 0; i < regionCount; i++) pyramidMap[0][i].push_back(i);
 	vector<Vec3b> regionColor = _regionColor;
 
+#ifdef SHOW_IMAGE
 	sprintf(pyramidName, "Pyramid_%d.png", 0);
 	writeRegionImageRepresent(pyramidMap[0].size(), pyramidRegion[0], regionColor, pyramidName, 0, 1);
+#endif
 
 	for (int pyramidIdx = 1; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
 

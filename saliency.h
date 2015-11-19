@@ -137,7 +137,7 @@ void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
 
 				Mat hullAreaMap(pixelRegion.size(), CV_8UC1, Scalar(0));
 				fillConvexPoly(hullAreaMap, pixelHull, Scalar(255));
-				hullArea[regionFlag] += sum(hullAreaMap).val[0];
+				hullArea[regionFlag] += sum(hullAreaMap).val[0] / 255;
 
 			}
 		}

@@ -19,7 +19,7 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	Size imgSize = LABImg.size();
 	pixelRegion = Mat::zeros( imgSize, CV_32SC1 );
 	const int leftside[4] = {2, 3, 5, 7};
-	const int SEGMENT_THRESHOLD = 2*(imgSize.height + imgSize.width);
+	const int SEGMENT_THRESHOLD = 0.2 * imgSize.width;
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
