@@ -10,9 +10,9 @@ int main(int args, char **argv) {
 	FILE *testConfig = fopen("test_config.txt", "a");
 	int testNum = 0;
 
-	for (double GAMA = 1.1; GAMA <= 1.3; GAMA += 0.1) {
-	for (double PARAM1 = 10; PARAM1 <= 10; PARAM1 += 10) {
-	for (int PARAM2 = 200; PARAM2 <= 400; PARAM2 += 50) {
+	for (double GAMA = 1.0; GAMA <= 1.0; GAMA += 0.1) {
+	for (double PARAM1 = 8; PARAM1 <= 8; PARAM1 += 10) {
+	for (int PARAM2 = 100; PARAM2 <= 100; PARAM2 += 100) {
 
 		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
 		printf("%d\t%.3lf\t%.3lf\t%d", testNum, GAMA, PARAM1, PARAM2);
@@ -42,7 +42,7 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			//if (fileNum == 101) break;
+			if (fileNum == 101) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -60,13 +60,13 @@ int main(int args, char **argv) {
 			Mat *pyramidRegion = new Mat[PYRAMID_SIZE];
 			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor, PARAM1);
 
-			Mat W, D;
-			buildRegionGraph(W, D, pyramidRegion, pyramidMap, regionColor, GAMA, PARAM1, PARAM2);
+			Mat W;
+			buildRegionGraph(W, pyramidRegion, pyramidMap, regionColor, GAMA, PARAM1, PARAM2);
 			delete[] pyramidMap;
 			delete[] pyramidRegion;
 
 			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, W, D, pixelRegion);
+			getSaliencyMap(saliencyMap, W, pixelRegion);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
@@ -74,7 +74,7 @@ int main(int args, char **argv) {
 #ifdef POS_NEG_RESULT_OUTPUR
 			Mat tmpMap;
 
-			cvtColor(LABImg, tmpMap, COLOR_RGB2Lab);
+			cvtColor(LABImg, tmpMap, COLOR_Lab2RGB);
 			Mat resultMap(tmpMap.rows, tmpMap.cols*3, CV_8UC3);
 			tmpMap.copyTo(resultMap(Rect(0, 0, tmpMap.cols, tmpMap.rows)));
 
@@ -85,17 +85,17 @@ int main(int args, char **argv) {
 			tmpMap.copyTo(resultMap(Rect(tmpMap.cols*2, 0, tmpMap.cols, tmpMap.rows)));
 
 			char fileName[100];
-			sprintf(fileName, "test/result/%04d_%s.png", (int)(precision.back()*10000), testFile->d_name);
+			sprintf(fileName, "test/result/%04d_%d_%s", (int)(precision.back()*10000), PARAM2, testFile->d_name);
 			imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 
 			if (precision.back() < 0.7) {
 				char fileName[100];
-				sprintf(fileName, "test/negative/%s", testFile->d_name);
+				sprintf(fileName, "test/negative/%d_%s", PARAM2,testFile->d_name);
 				imwrite(fileName, inputImg);
 			} else {
 				char fileName[100];
-				sprintf(fileName, "test/positive/%s", testFile->d_name);
+				sprintf(fileName, "test/positive/%d_%s", PARAM2,testFile->d_name);
 				imwrite(fileName, inputImg);
 			}
 #endif

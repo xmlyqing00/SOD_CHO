@@ -1,9 +1,10 @@
 #ifndef COMMAN_H
 #define COMMAN_H
 
-#define SHOW_IMAGE
+//#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
+#define POS_NEG_RESULT_OUTPUR
 
 #include <stdlib.h>
 #include <stdio.h>

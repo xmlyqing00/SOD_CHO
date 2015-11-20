@@ -250,12 +250,11 @@ void getRegionRelation(Mat &relation, const Mat &regionNeighbour, const Mat &tmp
 	delete &que;
 }
 
-void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< vector<int> > *pyramidMap,
+void buildRegionGraph(Mat &W, const Mat *pyramidRegion, const vector< vector<int> > *pyramidMap,
 					  const vector<Vec3b> &regionColor, const double GAMA, const double PARAM1, const double PARAM2) {
 
 	int baseRegionCount = pyramidMap[0].size();
 	W = Mat(baseRegionCount, baseRegionCount, CV_64FC1, Scalar(0));
-	D = Mat(baseRegionCount, baseRegionCount, CV_64FC1, Scalar(0));
 	Mat c(baseRegionCount, baseRegionCount, CV_32SC1, Scalar(0));
 
 	int *baseRegionElementCount = new int[baseRegionCount];
@@ -266,294 +265,276 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	}
 	getRegionElement(baseRegionElement, baseRegionElementCount, pyramidRegion[0]);
 
-	Mat baseRegionNeighbour;
-	getRegionNeighbour(baseRegionNeighbour, pyramidRegion[0], baseRegionCount);
+//	Mat baseRegionNeighbour;
+//	getRegionNeighbour(baseRegionNeighbour, pyramidRegion[0], baseRegionCount);
 
-	// update c
-	for (int pyramidIdx = 0; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
+//	// update c
+//	for (int pyramidIdx = 0; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
 
-		int regionCount = pyramidMap[pyramidIdx].size();
+//		int regionCount = pyramidMap[pyramidIdx].size();
 
-		int *regionElementCount = new int[regionCount];
-		vector<Point> *regionElement = new vector<Point>[regionCount];
-		for (int i = 0; i < regionCount; i++) {
-			regionElementCount[i] = 0;
-			regionElement[i].clear();
-		}
-		getRegionElement(regionElement, regionElementCount, pyramidRegion[pyramidIdx]);
-
-		Mat regionOverlap(regionCount, regionCount, CV_32SC1, Scalar(0));
-		Mat baseRegionOverlap(regionCount, baseRegionCount, CV_32SC1, Scalar(0));
-
-		for ( int i = 0; i < regionCount; i++ ) {
-
-			vector<Point> regionBound;
-			convexHull( regionElement[i], regionBound );
-
-			vector<Point> horizontalBound;
-			getHorizontalBound(horizontalBound, regionBound);
-
-			getOverlap(regionOverlap, baseRegionOverlap, i, pyramidRegion[pyramidIdx], pyramidRegion[0], horizontalBound);
-		}
-
+//		int *regionElementCount = new int[regionCount];
+//		vector<Point> *regionElement = new vector<Point>[regionCount];
 //		for (int i = 0; i < regionCount; i++) {
-//			Mat tmp(pyramidRegion[0].size(), CV_8UC1, Scalar(0));
-//			for (int y = 0; y < tmp.rows; y++) {
-//				for (int x = 0; x < tmp.cols; x++) {
-//					if (pyramidRegion[pyramidIdx].ptr<int>(y)[x] == i) {
-//						tmp.ptr<uchar>(y)[x] = 255;
-//					}
-//				}
-//			}
+//			regionElementCount[i] = 0;
+//			regionElement[i].clear();
+//		}
+//		getRegionElement(regionElement, regionElementCount, pyramidRegion[pyramidIdx]);
 
-//			imshow("region", tmp);
-//			waitKey(0);
+//		Mat regionOverlap(regionCount, regionCount, CV_32SC1, Scalar(0));
+//		Mat baseRegionOverlap(regionCount, baseRegionCount, CV_32SC1, Scalar(0));
+
+//		for ( int i = 0; i < regionCount; i++ ) {
+
+//			vector<Point> regionBound;
+//			convexHull( regionElement[i], regionBound );
+
+//			vector<Point> horizontalBound;
+//			getHorizontalBound(horizontalBound, regionBound);
+
+//			getOverlap(regionOverlap, baseRegionOverlap, i, pyramidRegion[pyramidIdx], pyramidRegion[0], horizontalBound);
 //		}
 
-		Mat tmpc(regionCount, regionCount, CV_32SC1, Scalar(0));
+////		for (int i = 0; i < regionCount; i++) {
+////			Mat tmp(pyramidRegion[0].size(), CV_8UC1, Scalar(0));
+////			for (int y = 0; y < tmp.rows; y++) {
+////				for (int x = 0; x < tmp.cols; x++) {
+////					if (pyramidRegion[pyramidIdx].ptr<int>(y)[x] == i) {
+////						tmp.ptr<uchar>(y)[x] = 255;
+////					}
+////				}
+////			}
 
-		for (int i = 0; i < regionCount; i++) {
+////			imshow("region", tmp);
+////			waitKey(0);
+////		}
 
-			for (int j = i + 1; j < regionCount; j++) {
-
-				double overlap0 = (double)regionOverlap.ptr<int>(i)[j] / regionElementCount[j];
-				double overlap1 = (double)regionOverlap.ptr<int>(j)[i] / regionElementCount[i];
-				int regionRelation = getCoveringValue(overlap0, overlap1);
-
-				switch (regionRelation) {
-				case -1:
-					tmpc.ptr<int>(i)[j] = -1;
-					break;
-				case 1:
-					tmpc.ptr<int>(i)[j] = 1;
-					break;
-				case 0:
-				case -2:
-					break;
-				}
-			}
-		}
-
-		// increase neighbour region c
-		for (int i = 0; i < regionCount; i++) {
-
-			vector<int> convexhullRegion;
-			int *baseRegionMap = new int[baseRegionCount];
-
-			for (int j = 0; j < regionCount; j++) {
-				for (size_t k = 0; k < pyramidMap[pyramidIdx][j].size(); k++) {
-					baseRegionMap[pyramidMap[pyramidIdx][j][k]] = j;
-				}
-			}
-
-			for (int j = 0; j < baseRegionCount; j++) {
-
-				if (tmpc.ptr<int>(i)[baseRegionMap[j]] < 1) continue;
-				if ((double)baseRegionOverlap.ptr<int>(i)[j] / baseRegionElementCount[j] > MIN_REGION_CONNECTED) {
-					convexhullRegion.push_back(j);
-				}
-			}
-
-			delete[] baseRegionMap;
-
-			int *replaceByIdx = new int[baseRegionCount];
-			for (int j = 0; j < baseRegionCount; j++) replaceByIdx[j] = j;
-
-			for (size_t j = 0; j < convexhullRegion.size(); j++) {
-				for (size_t k = j + 1; k < convexhullRegion.size(); k++) {
-
-					int regionIdx1 = convexhullRegion[j];
-					int regionIdx2 = convexhullRegion[k];
-
-					if (baseRegionNeighbour.ptr<uchar>(regionIdx1)[regionIdx2] == 0) continue;
-
-					int pa1 = getElementHead(regionIdx1, replaceByIdx);
-					int pa2 = getElementHead(regionIdx2, replaceByIdx);
-					replaceByIdx[pa1] = pa2;
-
-				}
-			}
-
-			for (size_t j = 0; j < convexhullRegion.size(); j++) {
-				for (size_t k = j + 1; k < convexhullRegion.size(); k++) {
-					int regionIdx1 = getElementHead(convexhullRegion[j], replaceByIdx);
-					int regionIdx2 = getElementHead(convexhullRegion[k], replaceByIdx);
-
-					if (regionIdx1 != regionIdx2) continue;
-					c.ptr<int>(convexhullRegion[j])[convexhullRegion[k]]++;
-					c.ptr<int>(convexhullRegion[k])[convexhullRegion[j]]++;
-				}
-			}
-
-			delete[] replaceByIdx;
-		}
-
-#ifdef DEBUG_DETAIL
-		for (int i = 0; i < baseRegionCount; i++) {
-			if (pyramidIdx < 4) break;
-			cout << "region " << i << endl;
-			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
-			int max_c = 0;
-			int min_c = INF;
-			for (int j = 0; j < baseRegionCount; j++) {
-				max_c = max(max_c, c.ptr<int>(i)[j]);
-				min_c = min(min_c, c.ptr<int>(i)[j]);
-			}
-
-			for (int y = 0; y < cc.rows; y++) {
-				for (int x = 0; x < cc.cols; x++) {
-					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
-					if (regionIdx == i) {
-						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
-					} else {
-						if (c.ptr<int>(i)[regionIdx] > 0) {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
-						} else {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
-						}
-					}
-				}
-			}
-			imshow("c", cc);
-			waitKey(0);
-		}
-#endif
-
-		// increase inside regions c
-		for (int i = 0; i < regionCount; i++) {
-			for (size_t j = 0; j < pyramidMap[pyramidIdx][i].size(); j++) {
-				for (size_t k = j + 1; k < pyramidMap[pyramidIdx][i].size(); k++) {
-
-					c.ptr<int>(pyramidMap[pyramidIdx][i][j])[pyramidMap[pyramidIdx][i][k]]++;
-					c.ptr<int>(pyramidMap[pyramidIdx][i][k])[pyramidMap[pyramidIdx][i][j]]++;
-				}
-			}
-		}
-
-#ifdef DEBUG_DETAIL
-		for (int i = 0; i < baseRegionCount; i++) {
-			if (pyramidIdx < 4) break;
-			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
-			int max_c = 0;
-			int min_c = INF;
-			for (int j = 0; j < baseRegionCount; j++) {
-				max_c = max(max_c, c.ptr<int>(i)[j]);
-				min_c = min(min_c, c.ptr<int>(i)[j]);
-			}
-
-			for (int y = 0; y < cc.rows; y++) {
-				for (int x = 0; x < cc.cols; x++) {
-					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
-					if (regionIdx == i) {
-						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
-					} else {
-						if (c.ptr<int>(i)[regionIdx] > 0) {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
-						} else {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
-						}
-					}
-				}
-			}
-			imshow("c", cc);
-			waitKey(0);
-		}
-#endif
-		//cout << c << endl;
-
-		// get region relation
-		Mat regionNeighbour;
-		getRegionNeighbour(regionNeighbour, pyramidRegion[pyramidIdx], regionCount);
-
-		Mat regionRelation;
-		getRegionRelation(regionRelation, regionNeighbour, tmpc, pyramidRegion[pyramidIdx], regionCount);
-		//cout << regionRelation << endl;
-
-		// decrease outside regions c
-		for (int i = 0; i < regionCount; i++) {
-			for (int j = i + 1; j < regionCount; j++) {
-
-				int r = regionRelation.ptr<int>(i)[j];
-				if (r == 0) continue;
-
-				for (size_t mapi_ele = 0; mapi_ele < pyramidMap[pyramidIdx][i].size(); mapi_ele++) {
-					for (size_t mapj_ele = 0; mapj_ele < pyramidMap[pyramidIdx][j].size(); mapj_ele++) {
-						c.ptr<int>(pyramidMap[pyramidIdx][i][mapi_ele])[pyramidMap[pyramidIdx][j][mapj_ele]] -= r;
-						c.ptr<int>(pyramidMap[pyramidIdx][j][mapj_ele])[pyramidMap[pyramidIdx][i][mapi_ele]] -= r;
-					}
-				}
-			}
-		}
-
-#ifdef DEBUG_DETAIL
-		for (int i = 0; i < baseRegionCount; i++) {
-			if (pyramidIdx < 4) break;
-			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
-			int max_c = 0;
-			int min_c = INF;
-			for (int j = 0; j < baseRegionCount; j++) {
-				max_c = max(max_c, c.ptr<int>(i)[j]);
-				min_c = min(min_c, c.ptr<int>(i)[j]);
-			}
-
-			for (int y = 0; y < cc.rows; y++) {
-				for (int x = 0; x < cc.cols; x++) {
-					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
-					if (regionIdx == i) {
-						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
-					} else {
-						if (c.ptr<int>(i)[regionIdx] > 0) {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
-						} else {
-							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
-						}
-					}
-				}
-			}
-			imshow("c", cc);
-			waitKey(0);
-		}
-#endif
-
-		//cout << c << endl;
-
-		delete[] regionElement;
-		delete[] regionElementCount;
-
+//		Mat tmpc(regionCount, regionCount, CV_32SC1, Scalar(0));
 
 //		for (int i = 0; i < regionCount; i++) {
-//			Mat tmp(pyramidRegion[pyramidIdx].size(), CV_8UC3, Scalar(0));
-//			int max_c = 0;
+
+//			for (int j = i + 1; j < regionCount; j++) {
+
+//				double overlap0 = (double)regionOverlap.ptr<int>(i)[j] / regionElementCount[j];
+//				double overlap1 = (double)regionOverlap.ptr<int>(j)[i] / regionElementCount[i];
+//				int regionRelation = getCoveringValue(overlap0, overlap1);
+
+//				switch (regionRelation) {
+//				case -1:
+//					tmpc.ptr<int>(i)[j] = -1;
+//					break;
+//				case 1:
+//					tmpc.ptr<int>(i)[j] = 1;
+//					break;
+//				case 0:
+//				case -2:
+//					break;
+//				}
+//			}
+//		}
+
+//		// increase neighbour region c
+//		for (int i = 0; i < regionCount; i++) {
+
+//			vector<int> convexhullRegion;
+//			int *baseRegionMap = new int[baseRegionCount];
+
 //			for (int j = 0; j < regionCount; j++) {
-//				max_c = max(max_c, -c.ptr<int>(i)[j]);
+//				for (size_t k = 0; k < pyramidMap[pyramidIdx][j].size(); k++) {
+//					baseRegionMap[pyramidMap[pyramidIdx][j][k]] = j;
+//				}
 //			}
-//			cout << max_c << endl;
-//			for (int y = 0; y < tmp.rows; y++) {
-//				for (int x = 0; x < tmp.cols; x++) {
-//					int regionIdx = pyramidRegion[pyramidIdx].ptr<int>(y)[x];
+
+//			for (int j = 0; j < baseRegionCount; j++) {
+
+//				if (tmpc.ptr<int>(i)[baseRegionMap[j]] < 1) continue;
+//				if ((double)baseRegionOverlap.ptr<int>(i)[j] / baseRegionElementCount[j] > MIN_REGION_CONNECTED) {
+//					convexhullRegion.push_back(j);
+//				}
+//			}
+
+//			delete[] baseRegionMap;
+
+//			int *replaceByIdx = new int[baseRegionCount];
+//			for (int j = 0; j < baseRegionCount; j++) replaceByIdx[j] = j;
+
+//			for (size_t j = 0; j < convexhullRegion.size(); j++) {
+//				for (size_t k = j + 1; k < convexhullRegion.size(); k++) {
+
+//					int regionIdx1 = convexhullRegion[j];
+//					int regionIdx2 = convexhullRegion[k];
+
+//					if (baseRegionNeighbour.ptr<uchar>(regionIdx1)[regionIdx2] == 0) continue;
+
+//					int pa1 = getElementHead(regionIdx1, replaceByIdx);
+//					int pa2 = getElementHead(regionIdx2, replaceByIdx);
+//					replaceByIdx[pa1] = pa2;
+
+//				}
+//			}
+
+//			for (size_t j = 0; j < convexhullRegion.size(); j++) {
+//				for (size_t k = j + 1; k < convexhullRegion.size(); k++) {
+//					int regionIdx1 = getElementHead(convexhullRegion[j], replaceByIdx);
+//					int regionIdx2 = getElementHead(convexhullRegion[k], replaceByIdx);
+
+//					if (regionIdx1 != regionIdx2) continue;
+//					c.ptr<int>(convexhullRegion[j])[convexhullRegion[k]]++;
+//					c.ptr<int>(convexhullRegion[k])[convexhullRegion[j]]++;
+//				}
+//			}
+
+//			delete[] replaceByIdx;
+//		}
+
+//#ifdef DEBUG_DETAIL
+//		for (int i = 0; i < baseRegionCount; i++) {
+//			if (pyramidIdx < 4) break;
+//			cout << "region " << i << endl;
+//			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
+//			int max_c = 0;
+//			int min_c = INF;
+//			for (int j = 0; j < baseRegionCount; j++) {
+//				max_c = max(max_c, c.ptr<int>(i)[j]);
+//				min_c = min(min_c, c.ptr<int>(i)[j]);
+//			}
+
+//			for (int y = 0; y < cc.rows; y++) {
+//				for (int x = 0; x < cc.cols; x++) {
+//					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
 //					if (regionIdx == i) {
-//						tmp.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
 //					} else {
-//						tmp.ptr<Vec3b>(y)[x] = Vec3b(0, -(double)c.ptr<int>(i)[regionIdx] / max_c * 255, 0);
+//						if (c.ptr<int>(i)[regionIdx] > 0) {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
+//						} else {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
+//						}
 //					}
 //				}
 //			}
-//			imshow("region", tmp);
+//			imshow("c", cc);
 //			waitKey(0);
 //		}
-	}
+//#endif
 
-	for (int i = 0; i < baseRegionCount; i++) {
-		for (int j = i + 1; j < baseRegionCount; j++) {
-			c.ptr<int>(i)[j] = (c.ptr<int>(i)[j] + c.ptr<int>(j)[i]) >> 1;
-			c.ptr<int>(j)[i] = c.ptr<int>(i)[j];
-		}
-	}
+//		// increase inside regions c
+//		for (int i = 0; i < regionCount; i++) {
+//			for (size_t j = 0; j < pyramidMap[pyramidIdx][i].size(); j++) {
+//				for (size_t k = j + 1; k < pyramidMap[pyramidIdx][i].size(); k++) {
+
+//					c.ptr<int>(pyramidMap[pyramidIdx][i][j])[pyramidMap[pyramidIdx][i][k]]++;
+//					c.ptr<int>(pyramidMap[pyramidIdx][i][k])[pyramidMap[pyramidIdx][i][j]]++;
+//				}
+//			}
+//		}
+
+//#ifdef DEBUG_DETAIL
+//		for (int i = 0; i < baseRegionCount; i++) {
+//			if (pyramidIdx < 4) break;
+//			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
+//			int max_c = 0;
+//			int min_c = INF;
+//			for (int j = 0; j < baseRegionCount; j++) {
+//				max_c = max(max_c, c.ptr<int>(i)[j]);
+//				min_c = min(min_c, c.ptr<int>(i)[j]);
+//			}
+
+//			for (int y = 0; y < cc.rows; y++) {
+//				for (int x = 0; x < cc.cols; x++) {
+//					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
+//					if (regionIdx == i) {
+//						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//					} else {
+//						if (c.ptr<int>(i)[regionIdx] > 0) {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
+//						} else {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
+//						}
+//					}
+//				}
+//			}
+//			imshow("c", cc);
+//			waitKey(0);
+//		}
+//#endif
+//		//cout << c << endl;
+
+//		// get region relation
+//		Mat regionNeighbour;
+//		getRegionNeighbour(regionNeighbour, pyramidRegion[pyramidIdx], regionCount);
+
+//		Mat regionRelation;
+//		getRegionRelation(regionRelation, regionNeighbour, tmpc, pyramidRegion[pyramidIdx], regionCount);
+//		//cout << regionRelation << endl;
+
+//		// decrease outside regions c
+//		for (int i = 0; i < regionCount; i++) {
+//			for (int j = i + 1; j < regionCount; j++) {
+
+//				int r = regionRelation.ptr<int>(i)[j];
+//				if (r == 0) continue;
+
+//				for (size_t mapi_ele = 0; mapi_ele < pyramidMap[pyramidIdx][i].size(); mapi_ele++) {
+//					for (size_t mapj_ele = 0; mapj_ele < pyramidMap[pyramidIdx][j].size(); mapj_ele++) {
+//						c.ptr<int>(pyramidMap[pyramidIdx][i][mapi_ele])[pyramidMap[pyramidIdx][j][mapj_ele]] -= r;
+//						c.ptr<int>(pyramidMap[pyramidIdx][j][mapj_ele])[pyramidMap[pyramidIdx][i][mapi_ele]] -= r;
+//					}
+//				}
+//			}
+//		}
+
+//#ifdef DEBUG_DETAIL
+//		for (int i = 0; i < baseRegionCount; i++) {
+//			if (pyramidIdx < 4) break;
+//			Mat cc(pyramidRegion[0].size(), CV_8UC3, Scalar(0));
+//			int max_c = 0;
+//			int min_c = INF;
+//			for (int j = 0; j < baseRegionCount; j++) {
+//				max_c = max(max_c, c.ptr<int>(i)[j]);
+//				min_c = min(min_c, c.ptr<int>(i)[j]);
+//			}
+
+//			for (int y = 0; y < cc.rows; y++) {
+//				for (int x = 0; x < cc.cols; x++) {
+//					int regionIdx = pyramidRegion[0].ptr<int>(y)[x];
+//					if (regionIdx == i) {
+//						cc.ptr<Vec3b>(y)[x] = Vec3b(255, 0, 0);
+//					} else {
+//						if (c.ptr<int>(i)[regionIdx] > 0) {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, (double)(c.ptr<int>(i)[regionIdx]) / (max_c) * 255, 0);
+//						} else {
+//							cc.ptr<Vec3b>(y)[x] = Vec3b(0, 0, (double)(c.ptr<int>(i)[regionIdx]) / (min_c) * 255);
+//						}
+//					}
+//				}
+//			}
+//			imshow("c", cc);
+//			waitKey(0);
+//		}
+//#endif
+
+//		//cout << c << endl;
+
+//		delete[] regionElement;
+//		delete[] regionElementCount;
+
+//	}
+
+//	for (int i = 0; i < baseRegionCount; i++) {
+//		for (int j = i + 1; j < baseRegionCount; j++) {
+//			c.ptr<int>(i)[j] = (c.ptr<int>(i)[j] + c.ptr<int>(j)[i]) >> 1;
+//			c.ptr<int>(j)[i] = c.ptr<int>(i)[j];
+//		}
+//	}
+
+	// region saliency
+
 
 	// init W
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
-			double w = pow(e, -(double)colorDiff(regionColor[i], regionColor[j]) / (PARAM1));
+			double w = pow(e, -(double)colorDiff(regionColor[i], regionColor[j]) / (8));
 			//cout << w << " " << colorDiff(regionColor[i], regionColor[j]) << endl;
 			W.ptr<double>(i)[j] = w;
 		}
@@ -581,7 +562,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
 			//double size = pow(e, -(double)sizeSigma / sqrt(baseRegionElementCount[i]*baseRegionElementCount[j]));
-			double size = log(baseRegionElementCount[i]*baseRegionElementCount[j]);
+			double size = baseRegionElementCount[i]*baseRegionElementCount[j];
 			//cout << baseRegionElementCount[i] << " " << baseRegionElementCount[j] << " " << size << endl;
 			//W.ptr<double>(i)[j] *= size;
 		}
@@ -605,9 +586,9 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	for (int i = 0; i < baseRegionCount; i++) {
 		//cout << regionCenterBias[i] << endl;
 		for (int j = i + 1; j < baseRegionCount; j++) {
-			double centerBias = pow(e, -(double)(abs(regionCenterBias[i]-regionCenterBias[j])) / 10);
+			double centerBias = pow(e, -(double)(abs(regionCenterBias[i]-regionCenterBias[j])) / 100);
 			//cout << centerBias << endl;
-			W.ptr<double>(i)[j] *= centerBias;
+			//W.ptr<double>(i)[j] *= centerBias;
 		}
 	}
 
@@ -616,12 +597,13 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 	delete[] baseRegionElement;
 	delete[] baseRegionElementCount;
 
-	Mat W0 = W.clone();
+	//Mat W0 = W.clone();
 
 	// update W with c
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
-			W.ptr<double>(i)[j] = W.ptr<double>(i)[j] * pow(GAMA, c.ptr<int>(i)[j]);
+			//W.ptr<double>(i)[j] = W.ptr<double>(i)[j] * pow(GAMA, c.ptr<int>(i)[j]);
+			//W.ptr<double>(i)[j] = pow(GAMA, c.ptr<int>(i)[j]);
 			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
 		}
 	}
@@ -672,12 +654,7 @@ void buildRegionGraph(Mat &W, Mat &D, const Mat *pyramidRegion, const vector< ve
 
 	//cout << W << endl;
 
-	for (int i = 0; i < baseRegionCount; i++) {
-		D.ptr<double>(i)[i] = 0;
-		for (int j = 0; j < baseRegionCount; j++) {
-			D.ptr<double>(i)[i] = D.ptr<double>(i)[i] + W.ptr<double>(i)[j];
-		}
-	}
+
 }
 
 #endif // GRAPH_H

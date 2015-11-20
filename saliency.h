@@ -4,23 +4,18 @@
 #include "comman.h"
 #include "type_que.h"
 
-void getSaliencyMap(Mat &saliencyMap, Mat &W, Mat &D, const Mat &pixelRegion) {
-
-//	saliencyMap = Mat(pixelRegion.size(), CV_64FC1);
-//	for (int y = 0; y < saliencyMap.rows; y++) {
-//		for (int x = 0; x < saliencyMap.cols; x++) {
-//			int regionIdx = pixelRegion.ptr<int>(y)[x];
-//			saliencyMap.ptr<double>(y)[x] = D.ptr<double>(regionIdx)[regionIdx];
-//		}
-//	}
-
-//	normalize(saliencyMap, saliencyMap, 0, 1, CV_MINMAX);
-//	saliencyMap.convertTo(saliencyMap, CV_8UC1, 255);
-//	imshow("Saliency_Map", saliencyMap);
-
-//	return;
+void getSaliencyMap(Mat &saliencyMap, Mat &W, const Mat &pixelRegion) {
 
 	int n = W.rows;
+
+	Mat D(W.size(), CV_64FC1, Scalar(0));
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			D.ptr<double>(i)[i] = D.ptr<double>(i)[i] + W.ptr<double>(i)[j];
+		}
+	}
+
+
 	Mat D_sqrt;
 	sqrt(D, D_sqrt);
 	Mat D_inv = D_sqrt.inv();
