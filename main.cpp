@@ -1,7 +1,6 @@
 #include "comman.h"
 #include "segment.h"
-#include "merge.h"
-#include "graph.h"
+#include "pyramid.h"
 #include "saliency.h"
 #include "evaluate.h"
 
@@ -12,7 +11,7 @@ int main(int args, char **argv) {
 
 	for (double GAMA = 1.0; GAMA <= 1.0; GAMA += 0.1) {
 	for (double PARAM1 = 8; PARAM1 <= 8; PARAM1 += 10) {
-	for (int PARAM2 = 100; PARAM2 <= 100; PARAM2 += 100) {
+	for (int PARAM2 = 15; PARAM2 <= 15; PARAM2 += 100) {
 
 		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
 		printf("%d\t%.3lf\t%.3lf\t%d", testNum, GAMA, PARAM1, PARAM2);
@@ -51,43 +50,41 @@ int main(int args, char **argv) {
 			Mat inputImg, LABImg;
 			readImage(inputImgName, inputImg, LABImg);
 
-			Mat pixelRegion;
-			int regionCount = 0;
-			vector<Vec3b> regionColor;
-			segmentImage(pixelRegion, regionCount, regionColor, LABImg);
-
-			vector< vector<int> > *pyramidMap = new vector< vector<int> >[PYRAMID_SIZE];
-			Mat *pyramidRegion = new Mat[PYRAMID_SIZE];
-			buildPyramidRegion(pyramidRegion, pyramidMap, pixelRegion, regionCount, LABImg, regionColor, PARAM1);
-
 			Mat W;
-			buildRegionGraph(W, pyramidRegion, pyramidMap, regionColor, GAMA, PARAM1, PARAM2);
-			delete[] pyramidMap;
-			delete[] pyramidRegion;
+			Mat pixelRegion;
+			segmentImage(W, pixelRegion, LABImg);
+
+			vector<Mat> pyramidRegion;
+			vector<int> regionCount;
+			buildPyramidRegion(pyramidRegion, regionCount, pixelRegion, W);
 
 			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, W, pixelRegion);
+			getSaliencyMap(saliencyMap, regionCount, pyramidRegion);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
 
 #ifdef POS_NEG_RESULT_OUTPUR
 			Mat tmpMap;
+			Size matSize = LABImg.size();
+			Mat resultMap(matSize.height, matSize.width*3, CV_8UC3);
 
 			cvtColor(LABImg, tmpMap, COLOR_Lab2RGB);
-			Mat resultMap(tmpMap.rows, tmpMap.cols*3, CV_8UC3);
-			tmpMap.copyTo(resultMap(Rect(0, 0, tmpMap.cols, tmpMap.rows)));
+			tmpMap.copyTo(resultMap(Rect(0, 0, matSize.width, matSize.height)));
 
 			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2RGB);
-			tmpMap.copyTo(resultMap(Rect(tmpMap.cols, 0, tmpMap.cols, tmpMap.rows)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width*1, 0, matSize.width, matSize.height)));
 
 			cvtColor(binaryMask[string(testFile->d_name)], tmpMap, COLOR_GRAY2RGB);
-			tmpMap.copyTo(resultMap(Rect(tmpMap.cols*2, 0, tmpMap.cols, tmpMap.rows)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width*2, 0, matSize.width, matSize.height)));
+
+			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
-			sprintf(fileName, "test/result/%04d_%d_%s", (int)(precision.back()*10000), PARAM2, testFile->d_name);
+			sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
 			imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
+			imshow("Result_Image.png", resultMap);
 
 			if (precision.back() < 0.7) {
 				char fileName[100];
@@ -98,6 +95,9 @@ int main(int args, char **argv) {
 				sprintf(fileName, "test/positive/%d_%s", PARAM2,testFile->d_name);
 				imwrite(fileName, inputImg);
 			}
+#ifdef SHOW_IMAGE
+			waitKey(0);
+#endif
 #endif
 
 			double sum1 = 0;
@@ -112,9 +112,6 @@ int main(int args, char **argv) {
 
 			cout << " total " << sum1 << " " << sum2 << endl;
 
-#ifdef SHOW_IMAGE
-			waitKey(0);
-#endif
 		}
 
 		double sum1 = 0;

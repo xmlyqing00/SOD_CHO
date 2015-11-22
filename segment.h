@@ -12,14 +12,13 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
-void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
+void graphCut( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
 
-	// segment image
 	vector<TypeEdge> edges;
 	Size imgSize = LABImg.size();
 	pixelRegion = Mat::zeros( imgSize, CV_32SC1 );
 	const int leftside[4] = {2, 3, 5, 7};
-	const int SEGMENT_THRESHOLD = 0.2 * imgSize.width;
+	const int SEGMENT_THRESHOLD = 0.1 * imgSize.width;
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
@@ -59,8 +58,9 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 		int pv = getElementHead(vIdx, regionHead);
 		if (pu == pv) continue;
 
-		if (edges[i].w <= minIntDiff[pu] && edges[i].w <= minIntDiff[pv]) {
+		if ((edges[i].w <= minIntDiff[pu]) && (edges[i].w <= minIntDiff[pv])) {
 
+			//cout << edges[i].w << " " << minIntDiff[pu] << " " << minIntDiff[pv] << endl;
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 			minIntDiff[pu] = edges[i].w + getMinIntDiff(SEGMENT_THRESHOLD, regionSize[pu]);
@@ -79,7 +79,7 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 		int pv = getElementHead(vIdx, regionHead);
 		if (pu == pv) continue;
 
-		if (regionSize[pu] < minRegionSize || regionSize[pv] < minRegionSize) {
+		if ((regionSize[pu] < minRegionSize) || (regionSize[pv] < minRegionSize)) {
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 		}
@@ -110,17 +110,71 @@ void segmentImage( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColo
 	delete[] regionIndex;
 	delete[] regionSize;
 
-	//writeRegionImage(regionCount, pixelRegion, "Segment_Init.png");
-
 	// get region represent color
 	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
 	//cout << regionCount << endl;
 
-	char outputFile[100];
-	sprintf(outputFile, "param_test/%d/seg/%s", 0, "0.png");
-	writeRegionImageRandom(regionCount, pixelRegion, outputFile, 0, 1);
+#ifdef SHOW_IMAGE
+	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png", 1, 1);
+#endif
 
+}
+
+void segmentImage(Mat &W, Mat &pixelRegion, const Mat &LABImg) {
+
+	int regionCount = 0;
+	vector<Vec3b> regionColor;
+
+	graphCut(pixelRegion, regionCount, regionColor, LABImg);
+
+	W = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
+
+	// init W
+	int sigma_color = 8;
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			double w = pow(e, -(double)colorDiff(regionColor[i], regionColor[j]) / sigma_color);
+			W.ptr<double>(i)[j] = w;
+		}
+	}
+
+	// update W with dist
+	Mat regionDist;
+	getRegionDist(regionDist, pixelRegion, regionCount);
+
+	int sigma_width = 0.2 * pixelRegion.cols;
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			double d = pow(e, -(double)regionDist.ptr<int>(i)[j] / sigma_width);
+			W.ptr<double>(i)[j] *= d;
+		}
+	}
+
+	// update W with size
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		regionElementCount[i] = 0;
+		regionElement[i].clear();
+	}
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
+
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			double size = regionElementCount[i] + regionElementCount[j];
+			W.ptr<double>(i)[j] *= size;
+		}
+	}
+	delete[] regionElementCount;
+	delete[] regionElement;
+
+	// symmetric
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
+		}
+	}
 }
 
 #endif // SEGMENT_H

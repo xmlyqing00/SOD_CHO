@@ -37,10 +37,10 @@ const float FLOAT_EPS = 1e-8;
 const int PIXEL_CONNECT = 8;
 const float RESIZE_RATE = 0.5;
 const float STRAIGHT_LINE_ANGLE = -0.9845;
-const int PYRAMID_SIZE = 10;
+const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
 
-const float MIN_REGION_SIZE = 0.00165;
+const float MIN_REGION_SIZE = 0.002;
 const int MIN_LINE_LENGTH = 10;
 const int CONVEX_EXTENSION_SIZE = 2;
 const float MIN_COMMAN_AREA = 0.5;
@@ -115,7 +115,8 @@ int float2sign(const double &f) {
 
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
-	int diffRes = 0;
+	int diffRes = 0.3 * sqr( (int)p0.val[0] - (int)p1.val[0] );
+	//int diffRes = 0;
 	for ( int i = 0; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );
 	}
@@ -207,6 +208,12 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 	tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 	GaussianBlur(tmpImg, tmpImg, Size(3,3), 0.5);
 	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
+
+	Mat channels[3];
+	split(LABImg, channels);
+	imshow("0", channels[0]);
+	imshow("1", channels[1]);
+	imshow("2", channels[2]);
 
 #ifdef SHOW_IMAGE
 	imshow("Input_Image.png", inputImg);

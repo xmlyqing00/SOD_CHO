@@ -4,103 +4,6 @@
 #include "comman.h"
 #include "type_que.h"
 
-void rasterizeLine( vector<Point> &pixelBound, Point p0, Point p1 ) {
-
-	int dx = p1.x - p0.x;
-	int dy = p1.y - p0.y;
-
-	if ( dx == 0 && dy == 0 ) {
-		pixelBound.push_back( p0 );
-		return;
-	}
-
-	if ( abs(dx) <= abs(dy) ) {
-
-		if ( dy < 0 ) {
-			swap( p0, p1 );
-			dx = -dx;
-			dy = -dy;
-		}
-
-		double slope = (double)dx / dy;
-		for ( int step = 1; step < dy; step++ ) {
-			int _y = p0.y + step;
-			int _x = p0.x + cvRound( slope * step );
-			pixelBound.push_back( Point( _x, _y ) );
-		}
-
-	} else {
-		if ( dx < 0 ) {
-			swap( p0, p1 );
-			dx = -dx;
-			dy = -dy;
-		}
-
-		double slope = (double)dy / dx;
-		for ( int step = 1; step < dx; step++ ) {
-			int _x = p0.x + step;
-			int _y = p0.y + cvRound( slope * step );
-			pixelBound.push_back( Point( _x, _y ) );
-		}
-
-	}
-}
-
-void getHorizontalBound(vector<Point> &horizontalBound, const vector<Point> &regionBound) {
-
-	horizontalBound.push_back(regionBound[0]);
-	for (size_t i = 1; i < regionBound.size(); i++) {
-
-		horizontalBound.push_back(regionBound[i]);
-		rasterizeLine(horizontalBound, regionBound[i - 1], regionBound[i]);
-	}
-	rasterizeLine(horizontalBound, regionBound[regionBound.size() - 1], regionBound[0]);
-
-	sort( horizontalBound.begin(), horizontalBound.end(), cmpPoint);
-}
-
-void getOverlap(Mat &regionOverlap, Mat &baseRegionOverlap, const int regionIdx,
-				const Mat &pixelRegion, const Mat &basePixelRegion,
-				const vector<Point> &horizontalBound) {
-
-	for ( size_t i = 0; i < horizontalBound.size(); ) {
-
-		size_t j;
-		for ( j = i; j < horizontalBound.size(); j++ ) {
-			if ( horizontalBound[j].y != horizontalBound[i].y ) break;
-		}
-		j--;
-		int y = horizontalBound[i].y;
-		for ( int x = horizontalBound[i].x; x <= horizontalBound[j].x; x++ ) {
-
-			int neighbourIdx = pixelRegion.ptr<int>( y )[x];
-
-			if (neighbourIdx == regionIdx) continue;
-
-			int baseRegionIdx = basePixelRegion.ptr<int>(y)[x];
-
-			regionOverlap.ptr<int>(regionIdx)[neighbourIdx]++;
-			baseRegionOverlap.ptr<int>(regionIdx)[baseRegionIdx]++;
-		}
-		i = j + 1;
-	}
-}
-
-int getCoveringValue(double overlap0, double overlap1) {
-
-	if (max(overlap0, overlap1) < MIN_REGION_CONNECTED) {
-		return -2;
-	} else {
-
-		double tmp0 = e / (e - 1);
-		double tmp = -pow(e, -overlap0 / 1) + pow(e, -overlap1 / 1);
-		tmp = tmp * tmp0;
-
-		if (abs(tmp) < MIN_COVERING) return 0;
-		return tmp > 0 ? 1 : -1;
-	}
-}
-
 void getRegionNeighbour(Mat &regionNeighbour, const Mat &pixelRegion, const int regionCount) {
 
 	regionNeighbour = Mat(regionCount, regionCount, CV_8UC1, Scalar(0));
@@ -549,7 +452,7 @@ void buildRegionGraph(Mat &W, const Mat *pyramidRegion, const vector< vector<int
 	int width = pyramidRegion[0].cols;
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
-			double d = pow(e, -(double)regionDist.ptr<int>(i)[j] / (width));
+			double d = pow(e, -(double)regionDist.ptr<int>(i)[j] / (width/5));
 			//cout << d << endl;
 			W.ptr<double>(i)[j] *= d;
 		}
@@ -562,9 +465,9 @@ void buildRegionGraph(Mat &W, const Mat *pyramidRegion, const vector< vector<int
 	for (int i = 0; i < baseRegionCount; i++) {
 		for (int j = i + 1; j < baseRegionCount; j++) {
 			//double size = pow(e, -(double)sizeSigma / sqrt(baseRegionElementCount[i]*baseRegionElementCount[j]));
-			double size = baseRegionElementCount[i]*baseRegionElementCount[j];
+			double size = baseRegionElementCount[i] + baseRegionElementCount[j];
 			//cout << baseRegionElementCount[i] << " " << baseRegionElementCount[j] << " " << size << endl;
-			//W.ptr<double>(i)[j] *= size;
+			W.ptr<double>(i)[j] *= size;
 		}
 	}
 
@@ -592,7 +495,7 @@ void buildRegionGraph(Mat &W, const Mat *pyramidRegion, const vector< vector<int
 		}
 	}
 
-	//delete[] regionCenterBias;
+	delete[] regionCenterBias;
 
 	delete[] baseRegionElement;
 	delete[] baseRegionElementCount;

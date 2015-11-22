@@ -316,7 +316,7 @@ void buildPyramidRegion(Mat *pyramidRegion, vector< vector<int> > *pyramidMap,
 	sprintf(pyramidName, "Pyramid_%d.png", 0);
 	writeRegionImageRepresent(pyramidMap[0].size(), pyramidRegion[0], regionColor, pyramidName, 0, 1);
 #endif
-	return;
+
 	for (int pyramidIdx = 1; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
 
 		pyramidRegion[pyramidIdx] = pyramidRegion[pyramidIdx-1].clone();

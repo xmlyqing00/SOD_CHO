@@ -150,14 +150,15 @@ void getEvaluateResult_1000(vector<double> &precision, vector<double> &recall,
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
 
-	recall.push_back(double(area_intersection) / area_mask);
-	precision.push_back((double)(area_intersection) / area_saliency);
+	double tmp_precision = (double)(area_intersection) / area_saliency;
+	double tmp_recall = (double)(area_intersection) / area_mask;
+
+	precision.push_back(tmp_precision);
+	recall.push_back(tmp_recall);
 
 	cout << "current " << precision.back() << " " << recall.back();
 	fprintf(resultFile, "%s %.5lf %.5lf\n", imgName, precision.back(), recall.back());
-#ifdef SHOW_IMAGE
-	imshow("Binary_Mask", mask);
-#endif
+
 }
 
 #endif // EVALUATE

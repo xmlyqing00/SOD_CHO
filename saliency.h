@@ -2,166 +2,90 @@
 #define SALIENCY_H
 
 #include "comman.h"
-#include "type_que.h"
 
-void getSaliencyMap(Mat &saliencyMap, Mat &W, const Mat &pixelRegion) {
+void getOverlap(vector<int> &regionOverlap, const Mat &curRegionMap, const int &curIdx,
+				const Mat &baseRegionMap, const Mat &convexMap) {
 
-	int n = W.rows;
+	for (int y = 0; y < curRegionMap.rows; y++) {
+		for (int x = 0; x < curRegionMap.cols; x++) {
 
-	Mat D(W.size(), CV_64FC1, Scalar(0));
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < n; j++) {
-			D.ptr<double>(i)[i] = D.ptr<double>(i)[i] + W.ptr<double>(i)[j];
+			if (convexMap.ptr<uchar>(y)[x] != 255) continue;
+			if (curRegionMap.ptr<int>(y)[x] == curIdx) continue;
+			regionOverlap[baseRegionMap.ptr<int>(y)[x]]++;
 		}
 	}
+}
 
+void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion) {
 
-	Mat D_sqrt;
-	sqrt(D, D_sqrt);
-	Mat D_inv = D_sqrt.inv();
-	Mat D_W = D - W;
-	Mat tmpMat = D_inv * D_W * D_inv;
+	vector<double> regionSaliency(regionCount.back(), 0);
+	vector<int> regionOverlap(regionCount.back(), 0);
+	Size imgSize = pyramidRegion[0].size();
 
-	Mat eigenVec, eigenVal;
-	bool eigenExist = eigen(tmpMat, eigenVal, eigenVec, -1, -1);
-	if (!eigenExist) {
-		cout << "Eigen does not exist !!" << endl;
-		return;
-	}
+	int count = 0;
+	for (int pyramidIdx = 0; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
 
-	//cout << sum(abs(tmpMat * eigenVec.row(n-2).t() - eigenVal.ptr<double>(0)[n-2] * eigenVec.row(n-2).t())) << endl;
+		int *regionElementCount = new int[regionCount[pyramidIdx]];
+		vector<Point> *regionElement = new vector<Point>[regionCount[pyramidIdx]];
+		for (int i = 0; i < regionCount[pyramidIdx]; i++) {
+			regionElementCount[i] = 0;
+			regionElement[i].clear();
+		}
+		getRegionElement(regionElement, regionElementCount, pyramidRegion[pyramidIdx]);
 
-	Mat y;
-	solve(D_sqrt, eigenVec.row(n-2).t(), y);
-	//cout << sum(abs(D_sqrt * y - eigenVec.row(n-2).t())) << endl;
+		for (int i = 0; i < regionCount[pyramidIdx]; i++) {
 
-	double best_partition = -1;
-	double min_ncut_result = INF;
+			vector<Point> regionBound;
+			convexHull(regionElement[i], regionBound );
 
-	//cout << y << endl;
+			Mat convexMap(imgSize, CV_8UC1, Scalar(0));
+			fillConvexPoly(convexMap, regionBound, Scalar(255));
+			imshow("convexMap", convexMap);
+			waitKey(1);
+			getOverlap(regionOverlap, pyramidRegion[pyramidIdx], i, pyramidRegion.back(), convexMap);
 
-	for (int i = 0; i < n; i++) {
+			count++;
+		}
 
-		double sumA = 0, sumB = 0;
+		if (pyramidIdx == PYRAMID_SIZE - 1) {
 
-		for (int j = 0; j < n; j++) {
-			if (float2sign(y.ptr<double>(0)[j]-y.ptr<double>(0)[i]) >= 0) {
-				sumA += D.ptr<double>(j)[j];
-			} else {
-				sumB += D.ptr<double>(j)[j];
+			for (int i = 0; i < regionCount.back(); i++) {
+				regionSaliency[i] = (double)regionOverlap[i] / (count * regionElementCount[i]);
+				cout << regionSaliency[i] << " ";
 			}
+			cout << endl;
 		}
 
-		if (sumA == 0 || sumB == 0) continue;
-
-		double b = sumA / sumB;
-
-		vector<double> tune_y(n);
-		for (int j = 0; j < n; j++) {
-			if (float2sign(y.ptr<double>(0)[j]-y.ptr<double>(0)[i]) >= 0) {
-				tune_y[j] = 1;
-			} else {
-				tune_y[j] = -b;
-			}
+		for (int i = 0; i < regionCount.back(); i++) {
+			cout << regionOverlap[i] << " ";
 		}
+		cout << endl;
 
-		Mat vec_y(tune_y);
+		delete[] regionElement;
+		delete[] regionElementCount;
+	}
 
-		Mat tmp1 = vec_y.t() * D_W * vec_y;
-		Mat tmp2 = vec_y.t() * D * vec_y;
-		double ncut_result = tmp1.ptr<double>(0)[0] / tmp2.ptr<double>(0)[0];
+	double max_saliency = 0;
+	double min_saliency = INF;
+	for (int i = 0; i < regionCount.back(); i++) {
+		max_saliency = max(max_saliency, regionSaliency[i]);
+		min_saliency = min(min_saliency, regionSaliency[i]);
+	}
+	for (int i = 0; i < regionCount.back(); i++) {
+		regionSaliency[i] = (regionSaliency[i] - min_saliency) / (max_saliency - min_saliency);
+	}
 
-		if (min_ncut_result > ncut_result) {
-			min_ncut_result = ncut_result;
-			best_partition = y.ptr<double>(0)[i];
+	saliencyMap = Mat(imgSize, CV_8UC1, Scalar(0));
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pyramidRegion.back().ptr<int>(y)[x];
+			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
 		}
 	}
 
-	int *regionTag = new int[n];
-	for (int i = 0; i < n; i++) {
-
-		if (y.ptr<double>(0)[i] >= best_partition) {
-			regionTag[i] = 1;
-		} else {
-			regionTag[i] = 0;
-		}
-	}
-
-	int partArea[2], hullArea[2];
-	Mat visited(pixelRegion.size(), CV_8UC1, Scalar(0));
-	TypeQue<Point> &que = *(new TypeQue<Point>);
-
-	for (int regionFlag = 0; regionFlag < 2; regionFlag++) {
-
-		partArea[regionFlag] = 0;
-		hullArea[regionFlag] = 0;
-
-		for (int y = 0; y < pixelRegion.rows; y++) {
-			for (int x = 0; x < pixelRegion.cols; x++) {
-
-				if (regionTag[pixelRegion.ptr<int>(y)[x]] != regionFlag) continue;
-				if (visited.ptr<uchar>(y)[x] == 1) continue;
-
-				que.clear();
-				que.push(Point(x,y));
-				visited.ptr<uchar>(y)[x] = 1;
-				vector<Point> pixelPart;
-
-				while (!que.empty()) {
-
-					Point nowP = que.front();
-					que.pop();
-					pixelPart.push_back(nowP);
-					partArea[regionFlag]++;
-
-					for (int k = 0; k < PIXEL_CONNECT; k++) {
-
-						Point newP = nowP + dxdy[k];
-						if (isOutside(newP.x, newP.y, pixelRegion.cols, pixelRegion.rows)) continue;
-						if (visited.ptr<uchar>(newP.y)[newP.x] == 1) continue;
-						if (regionTag[pixelRegion.ptr<int>(newP.y)[newP.x]] != regionFlag) continue;
-
-						visited.ptr<uchar>(newP.y)[newP.x] = 1;
-						que.push(newP);
-					}
-
-				}
-
-				vector<Point> pixelHull;
-				convexHull(pixelPart, pixelHull);
-
-				Mat hullAreaMap(pixelRegion.size(), CV_8UC1, Scalar(0));
-				fillConvexPoly(hullAreaMap, pixelHull, Scalar(255));
-				hullArea[regionFlag] += sum(hullAreaMap).val[0] / 255;
-
-			}
-		}
-	}
-
-	delete &que;
-
-	double overlap[2];
-	overlap[0] = (double)(hullArea[0] - partArea[0]) / partArea[1];
-	overlap[1] = (double)(hullArea[1] - partArea[1]) / partArea[0];
-	if (overlap[0] < overlap[1]) {
-		for (int i = 0; i < n; i++) regionTag[i] = 1 - regionTag[i];
-	}
-
-	saliencyMap = Mat(pixelRegion.size(), CV_8UC1, Scalar(0));
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			saliencyMap.ptr<uchar>(y)[x] = 255 * regionTag[regionIdx];
-		}
-	}
-
-	delete[] regionTag;
-#ifdef SHOW_IMAGE
-	imshow("Saliency_Map", saliencyMap);
-#endif
-	imwrite("Saliency_Map.png", saliencyMap);
+	imshow("Saliency_Image", saliencyMap);
 
 }
+
 
 #endif // SALIENCY_H
