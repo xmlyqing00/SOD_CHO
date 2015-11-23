@@ -4,7 +4,7 @@
 //#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
-#define POS_NEG_RESULT_OUTPUR
+#define POS_NEG_RESULT_OUTPUT
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,19 +31,14 @@ using namespace cv;
 
 const Point dxdy[8] = {Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ),
 					   Point( -1, -1), Point( 1, -1 ), Point( -1, 1), Point( 1, 1 )};
-const double e = 2.718281828459;
 const double PI = 3.14159265358;
 const float FLOAT_EPS = 1e-8;
 const int PIXEL_CONNECT = 8;
-const float RESIZE_RATE = 0.5;
-const float STRAIGHT_LINE_ANGLE = -0.9845;
 const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
+const int MIN_REGION_SIZE = 200;
+const int SEGMENT_THRESHOLD = 80;
 
-const float MIN_REGION_SIZE = 0.002;
-const int MIN_LINE_LENGTH = 10;
-const int CONVEX_EXTENSION_SIZE = 2;
-const float MIN_COMMAN_AREA = 0.5;
 const float MIN_REGION_CONNECTED = 0.001;
 const float MIN_COVERING = 0.01;
 const int MIN_REGION_NEIGHBOUR = 8;
@@ -117,7 +112,7 @@ int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
 	int diffRes = 0.3 * sqr( (int)p0.val[0] - (int)p1.val[0] );
 	//int diffRes = 0;
-	for ( int i = 0; i < 3; i++ ) {
+	for ( int i = 1; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );
 	}
 	return cvRound(sqrt(diffRes));
@@ -204,18 +199,16 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 #ifdef SHOW_IMAGE
 	imwrite("Input_Image.jpg", inputImg);
 #endif
-	Mat tmpImg = inputImg.clone();
-	tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
-	GaussianBlur(tmpImg, tmpImg, Size(3,3), 0.5);
+	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
+	GaussianBlur(tmpImg, tmpImg, Size(), 0.5, 0, BORDER_REPLICATE);
 	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
 
+#ifdef SHOW_IMAGE
 	Mat channels[3];
 	split(LABImg, channels);
 	imshow("0", channels[0]);
 	imshow("1", channels[1]);
 	imshow("2", channels[2]);
-
-#ifdef SHOW_IMAGE
 	imshow("Input_Image.png", inputImg);
 #endif
 }
@@ -291,28 +284,30 @@ void getRegionColor(vector<Vec3b> &regionColor, const int regionCount, const Mat
 
 void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount) {
 
-	vector<Point> regionCenter(regionCount, Point(0, 0));
+	vector<Point2d> regionCenter(regionCount, Point(0, 0));
 	vector<int> regionSize(regionCount, 0);
 
 	for (int y = 0; y < pixelRegion.rows; y++) {
 		for (int x = 0; x < pixelRegion.cols; x++) {
 
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionCenter[regionIdx] += Point(x,y);
+			regionCenter[regionIdx] += Point2d(x,y);
 			regionSize[regionIdx]++;
 		}
 	}
 
+	int width = pixelRegion.cols;
+	int height = pixelRegion.rows;
 	for (int i = 0; i < regionCount; i++) {
-		regionCenter[i].x /= regionSize[i];
-		regionCenter[i].y /= regionSize[i];
+		regionCenter[i].x /= width * regionSize[i];
+		regionCenter[i].y /= height * regionSize[i];
 	}
 
-	regionDist = Mat(regionCount, regionCount, CV_32SC1, Scalar(0));
+	regionDist = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			regionDist.ptr<int>(i)[j] = getPointDist(regionCenter[i], regionCenter[j]);
-			regionDist.ptr<int>(j)[i] = regionDist.ptr<int>(i)[j];
+			regionDist.ptr<double>(i)[j] = sqr(regionCenter[i].x-regionCenter[j].x) + sqr(regionCenter[i].y-regionCenter[j].y);
+			regionDist.ptr<double>(j)[i] = regionDist.ptr<double>(i)[j];
 		}
 	}
 }

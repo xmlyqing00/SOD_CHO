@@ -16,6 +16,21 @@ void getOverlap(vector<int> &regionOverlap, const Mat &curRegionMap, const int &
 	}
 }
 
+void getCenterBias(double &centerBias, const vector<Point> &pts, const Point &midP) {
+
+	Point2d bias(0, 0);
+	int width = midP.x << 1;
+	int height = midP.y << 1;
+	for (size_t i = 0; i < pts.size(); i++) {
+		bias += Point2d(abs(pts[i].x - midP.x), abs(pts[i].y - midP.y));
+	}
+
+	bias.x /= width * pts.size();
+	bias.y /= height * pts.size();
+	centerBias = exp(-9.0 * (sqr(bias.x) + sqr(bias.y)));
+
+}
+
 void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion) {
 
 	vector<double> regionSaliency(regionCount.back(), 0);
@@ -27,10 +42,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 
 		int *regionElementCount = new int[regionCount[pyramidIdx]];
 		vector<Point> *regionElement = new vector<Point>[regionCount[pyramidIdx]];
-		for (int i = 0; i < regionCount[pyramidIdx]; i++) {
-			regionElementCount[i] = 0;
-			regionElement[i].clear();
-		}
+		memset(regionElementCount, 0, sizeof(int)*regionCount[pyramidIdx]);
 		getRegionElement(regionElement, regionElementCount, pyramidRegion[pyramidIdx]);
 
 		for (int i = 0; i < regionCount[pyramidIdx]; i++) {
@@ -40,33 +52,45 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 
 			Mat convexMap(imgSize, CV_8UC1, Scalar(0));
 			fillConvexPoly(convexMap, regionBound, Scalar(255));
-			imshow("convexMap", convexMap);
-			waitKey(1);
 			getOverlap(regionOverlap, pyramidRegion[pyramidIdx], i, pyramidRegion.back(), convexMap);
 
 			count++;
 		}
 
-		if (pyramidIdx == PYRAMID_SIZE - 1) {
-
-			for (int i = 0; i < regionCount.back(); i++) {
-				regionSaliency[i] = (double)regionOverlap[i] / (count * regionElementCount[i]);
-				cout << regionSaliency[i] << " ";
-			}
-			cout << endl;
-		}
-
-		for (int i = 0; i < regionCount.back(); i++) {
-			cout << regionOverlap[i] << " ";
-		}
-		cout << endl;
-
 		delete[] regionElement;
 		delete[] regionElementCount;
 	}
 
+	int *regionElementCount = new int[regionCount.back()];
+	vector<Point> *regionElement = new vector<Point>[regionCount.back()];
+	memset(regionElementCount, 0, sizeof(int)*regionCount.back());
+	getRegionElement(regionElement, regionElementCount, pyramidRegion.back());
+
 	double max_saliency = 0;
 	double min_saliency = INF;
+	for (int i = 0; i < regionCount.back(); i++) {
+
+		regionSaliency[i] = (double)regionOverlap[i] / (count * regionElementCount[i]);
+		max_saliency = max(max_saliency, regionSaliency[i]);
+		min_saliency = min(min_saliency, regionSaliency[i]);
+		//cout << regionSaliency[i] << " ";
+	}
+	//cout << endl;
+
+	Point midP(imgSize.width/2, imgSize.height/2);
+	for (int i = 0; i < regionCount.back(); i++) {
+
+		regionSaliency[i] = (regionSaliency[i] - min_saliency) / (max_saliency - min_saliency);
+
+		double centerBias;
+		getCenterBias(centerBias, regionElement[i], midP);
+		//cout << centerBias << " " << regionSaliency[i] << " ";
+		regionSaliency[i] *= centerBias;
+		//cout << regionSaliency[i] << endl;
+	}
+
+	max_saliency = 0;
+	min_saliency = INF;
 	for (int i = 0; i < regionCount.back(); i++) {
 		max_saliency = max(max_saliency, regionSaliency[i]);
 		min_saliency = min(min_saliency, regionSaliency[i]);
@@ -83,7 +107,12 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 		}
 	}
 
+#ifdef SHOW_IMAGE
 	imshow("Saliency_Image", saliencyMap);
+#endif
+
+	delete[] regionElement;
+	delete[] regionElementCount;
 
 }
 

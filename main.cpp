@@ -6,15 +6,17 @@
 
 int main(int args, char **argv) {
 
-	FILE *testConfig = fopen("test_config.txt", "a");
+#ifdef LOG
+	FILE *testConfig = fopen("logs/test_log.txt", "a");
+#endif
 	int testNum = 0;
 
-	for (double GAMA = 1.0; GAMA <= 1.0; GAMA += 0.1) {
-	for (double PARAM1 = 8; PARAM1 <= 8; PARAM1 += 10) {
-	for (int PARAM2 = 15; PARAM2 <= 15; PARAM2 += 100) {
+	for (int PARAM1 = 200; PARAM1 <= 200; PARAM1 += 10) {
 
-		fprintf(testConfig, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
-		printf("%d\t%.3lf\t%.3lf\t%d", testNum, GAMA, PARAM1, PARAM2);
+#ifdef LOG
+		fprintf(testConfig, "%d\tThreshold %d\t", testNum, PARAM1);
+#endif
+		printf("%d\t%d", testNum, PARAM1);
 		cout << endl;
 
 		char dirName[100];
@@ -34,14 +36,13 @@ int main(int args, char **argv) {
 		vector<double> precision, recall;
 		DIR *testDir = opendir(dirName);
 		dirent *testFile;
-		FILE *resultFile = fopen("result.txt", "w");
 		int fileNum = 0;
 
 		while ((testFile = readdir(testDir)) != NULL) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 101) break;
+			if (fileNum == 201) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -62,9 +63,9 @@ int main(int args, char **argv) {
 			getSaliencyMap(saliencyMap, regionCount, pyramidRegion);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
-			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, resultFile);
+			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, PARAM1);
 
-#ifdef POS_NEG_RESULT_OUTPUR
+#ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
 			Size matSize = LABImg.size();
 			Mat resultMap(matSize.height, matSize.width*3, CV_8UC3);
@@ -81,20 +82,21 @@ int main(int args, char **argv) {
 			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
-			sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
+			//sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
+			sprintf(fileName, "test/result/%s", testFile->d_name);
 			imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
-			if (precision.back() < 0.7) {
-				char fileName[100];
-				sprintf(fileName, "test/negative/%d_%s", PARAM2,testFile->d_name);
-				imwrite(fileName, inputImg);
-			} else {
-				char fileName[100];
-				sprintf(fileName, "test/positive/%d_%s", PARAM2,testFile->d_name);
-				imwrite(fileName, inputImg);
-			}
+//			if (precision.back() < 0.85) {
+//				char fileName[100];
+//				sprintf(fileName, "test/negative/%s", testFile->d_name);
+//				imwrite(fileName, inputImg);
+//			} else {
+//				char fileName[100];
+//				sprintf(fileName, "test/positive/%s", testFile->d_name);
+//				imwrite(fileName, inputImg);
+//			}
 #ifdef SHOW_IMAGE
 			waitKey(0);
 #endif
@@ -123,25 +125,22 @@ int main(int args, char **argv) {
 		sum1 = sum1 / precision.size();
 		sum2 = sum2 / recall.size();
 
-		fprintf(testConfig, "precision %.3lf\t recall %.3lf\n", sum1, sum2);
-
-		fprintf(resultFile, "\ntotal %.5lf %.5lf\n", sum1, sum2);
-		fclose(resultFile);
+#ifdef LOG
+		fprintf(testConfig, "Precision %.4lf\tRecall %.4lf\n", sum1, sum2);
 
 		char logName[100];
-		sprintf(logName, "logs/%d_%d_%d.txt", (int)(sum1*10000), (int)(sum2*10000), testNum);
+		sprintf(logName, "logs/%04d_%04d_%d.txt", (int)(sum1*10000), (int)(sum2*10000), PARAM1);
 		FILE *logFile = fopen(logName, "w");
-		fprintf(logFile, "%d\t%.3lf\t%.3lf\t%d\n", testNum, GAMA, PARAM1, PARAM2);
+		fprintf(logFile, "%d\t%d\n", testNum, PARAM1);
 		fclose(logFile);
-
+#endif
 		testNum++;
 
 	}
-	}
-	}
-
+#ifdef LOG
 	fclose(testConfig);
+#endif
 
-    return 0;
+	return 0;
 
 }

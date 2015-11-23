@@ -12,13 +12,12 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
-void graphCut( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
+void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
 
 	vector<TypeEdge> edges;
 	Size imgSize = LABImg.size();
 	pixelRegion = Mat::zeros( imgSize, CV_32SC1 );
 	const int leftside[4] = {2, 3, 5, 7};
-	const int SEGMENT_THRESHOLD = 0.1 * imgSize.width;
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
@@ -60,7 +59,6 @@ void graphCut( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, c
 
 		if ((edges[i].w <= minIntDiff[pu]) && (edges[i].w <= minIntDiff[pv])) {
 
-			//cout << edges[i].w << " " << minIntDiff[pu] << " " << minIntDiff[pv] << endl;
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 			minIntDiff[pu] = edges[i].w + getMinIntDiff(SEGMENT_THRESHOLD, regionSize[pu]);
@@ -68,8 +66,6 @@ void graphCut( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, c
 	}
 
 	delete[] minIntDiff;
-
-	int minRegionSize = MIN_REGION_SIZE * (imgSize.height * imgSize.width);
 
 	for (size_t i = 0; i < edges.size(); i++) {
 
@@ -79,7 +75,7 @@ void graphCut( Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, c
 		int pv = getElementHead(vIdx, regionHead);
 		if (pu == pv) continue;
 
-		if ((regionSize[pu] < minRegionSize) || (regionSize[pv] < minRegionSize)) {
+		if ((regionSize[pu] < MIN_REGION_SIZE) || (regionSize[pv] < MIN_REGION_SIZE)) {
 			regionHead[pv] = pu;
 			regionSize[pu] += regionSize[pv];
 		}
@@ -126,7 +122,7 @@ void segmentImage(Mat &W, Mat &pixelRegion, const Mat &LABImg) {
 	int regionCount = 0;
 	vector<Vec3b> regionColor;
 
-	graphCut(pixelRegion, regionCount, regionColor, LABImg);
+	overSegmentation(pixelRegion, regionCount, regionColor, LABImg);
 
 	W = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
 
@@ -134,7 +130,7 @@ void segmentImage(Mat &W, Mat &pixelRegion, const Mat &LABImg) {
 	int sigma_color = 8;
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			double w = pow(e, -(double)colorDiff(regionColor[i], regionColor[j]) / sigma_color);
+			double w = exp(-(double)colorDiff(regionColor[i], regionColor[j]) / sigma_color);
 			W.ptr<double>(i)[j] = w;
 		}
 	}
@@ -143,10 +139,10 @@ void segmentImage(Mat &W, Mat &pixelRegion, const Mat &LABImg) {
 	Mat regionDist;
 	getRegionDist(regionDist, pixelRegion, regionCount);
 
-	int sigma_width = 0.2 * pixelRegion.cols;
+	double sigma_width = 0.4;
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			double d = pow(e, -(double)regionDist.ptr<int>(i)[j] / sigma_width);
+			double d = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
 			W.ptr<double>(i)[j] *= d;
 		}
 	}

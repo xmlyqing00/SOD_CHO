@@ -142,8 +142,11 @@ void getUserData_1000(map<string,Mat> &binaryMask, const char *dirName) {
 }
 
 void getEvaluateResult_1000(vector<double> &precision, vector<double> &recall,
-							const Mat &saliencyMap, map<string,Mat> &binaryMask,
-							const char *imgName, FILE *resultFile) {
+							const Mat &_saliencyMap, map<string,Mat> &binaryMask,
+							const char *imgName, const int PARAM1) {
+
+	Mat saliencyMap;
+	threshold(_saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
 	Mat mask = binaryMask[string(imgName)];
 	int area_saliency = sum(saliencyMap).val[0] / 255;
@@ -157,7 +160,6 @@ void getEvaluateResult_1000(vector<double> &precision, vector<double> &recall,
 	recall.push_back(tmp_recall);
 
 	cout << "current " << precision.back() << " " << recall.back();
-	fprintf(resultFile, "%s %.5lf %.5lf\n", imgName, precision.back(), recall.back());
 
 }
 
