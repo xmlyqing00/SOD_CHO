@@ -11,7 +11,7 @@ int main(int args, char **argv) {
 #endif
 	int testNum = 0;
 
-	for (int PARAM1 = 200; PARAM1 <= 200; PARAM1 += 10) {
+	for (int PARAM1 = 0; PARAM1 < 255; PARAM1 += 5) {
 
 #ifdef LOG
 		fprintf(testConfig, "%d\tThreshold %d\t", testNum, PARAM1);
@@ -42,7 +42,7 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 201) break;
+			if (fileNum == 1001) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -68,7 +68,7 @@ int main(int args, char **argv) {
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
 			Size matSize = LABImg.size();
-			Mat resultMap(matSize.height, matSize.width*3, CV_8UC3);
+			Mat resultMap(matSize.height, matSize.width*3, CV_8UC3, Scalar(0));
 
 			cvtColor(LABImg, tmpMap, COLOR_Lab2RGB);
 			tmpMap.copyTo(resultMap(Rect(0, 0, matSize.width, matSize.height)));

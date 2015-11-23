@@ -36,8 +36,8 @@ const float FLOAT_EPS = 1e-8;
 const int PIXEL_CONNECT = 8;
 const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
-const int MIN_REGION_SIZE = 200;
-const int SEGMENT_THRESHOLD = 80;
+const int MIN_REGION_SIZE = 200; // 200
+const int SEGMENT_THRESHOLD = 80; // 80
 
 const float MIN_REGION_CONNECTED = 0.001;
 const float MIN_COVERING = 0.01;
@@ -195,7 +195,7 @@ void init() {
 
 void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 
-    inputImg = imread( imgName );
+	inputImg = imread( imgName );
 #ifdef SHOW_IMAGE
 	imwrite("Input_Image.jpg", inputImg);
 #endif
