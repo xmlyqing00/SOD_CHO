@@ -2,6 +2,7 @@
 #include "segment.h"
 #include "pyramid.h"
 #include "saliency.h"
+#include "cutobj.h"
 #include "evaluate.h"
 
 int main(int args, char **argv) {
@@ -11,7 +12,7 @@ int main(int args, char **argv) {
 #endif
 	int testNum = 0;
 
-	for (int PARAM1 = 0; PARAM1 < 255; PARAM1 += 5) {
+	for (int PARAM1 = 115; PARAM1 < 255; PARAM1 += 500) {
 
 #ifdef LOG
 		fprintf(testConfig, "%d\tThreshold %d\t", testNum, PARAM1);
@@ -42,7 +43,7 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 1001) break;
+			if (fileNum == 101) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -60,43 +61,50 @@ int main(int args, char **argv) {
 			buildPyramidRegion(pyramidRegion, regionCount, pixelRegion, W);
 
 			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, regionCount, pyramidRegion);
+			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, LABImg);
+
+			Mat saliencyObj;
+			getSaliencyObj(saliencyObj, saliencyMap);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
-			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, PARAM1);
+			getEvaluateResult_1000(precision, recall, saliencyObj, binaryMask, testFile->d_name, PARAM1);
 
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
 			Size matSize = LABImg.size();
-			Mat resultMap(matSize.height, matSize.width*3, CV_8UC3, Scalar(0));
+			Mat resultMap(matSize.height*2, matSize.width*2, CV_8UC3, Scalar(0));
 
-			cvtColor(LABImg, tmpMap, COLOR_Lab2RGB);
+			tmpMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 			tmpMap.copyTo(resultMap(Rect(0, 0, matSize.width, matSize.height)));
 
-			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2RGB);
-			tmpMap.copyTo(resultMap(Rect(matSize.width*1, 0, matSize.width, matSize.height)));
-
 			cvtColor(binaryMask[string(testFile->d_name)], tmpMap, COLOR_GRAY2RGB);
-			tmpMap.copyTo(resultMap(Rect(matSize.width*2, 0, matSize.width, matSize.height)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width, 0, matSize.width, matSize.height)));
+
+			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2RGB);
+			tmpMap.copyTo(resultMap(Rect(0, matSize.height, matSize.width, matSize.height)));
+
+			cvtColor(saliencyObj, tmpMap, COLOR_GRAY2RGB);
+			tmpMap.copyTo(resultMap(Rect(matSize.width, matSize.height, matSize.width, matSize.height)));
+
 
 			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
-			//sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
-			sprintf(fileName, "test/result/%s", testFile->d_name);
+			sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
+			//sprintf(fileName, "test/result/%s", testFile->d_name);
 			imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
-//			if (precision.back() < 0.85) {
-//				char fileName[100];
-//				sprintf(fileName, "test/negative/%s", testFile->d_name);
-//				imwrite(fileName, inputImg);
-//			} else {
-//				char fileName[100];
-//				sprintf(fileName, "test/positive/%s", testFile->d_name);
-//				imwrite(fileName, inputImg);
-//			}
+			if (precision.back() < 0.8 || recall.back() < 0.8) {
+				char fileName[100];
+				sprintf(fileName, "test/negative/%s", testFile->d_name);
+				imwrite(fileName, inputImg);
+			} else {
+				char fileName[100];
+				sprintf(fileName, "test/positive/%s", testFile->d_name);
+				imwrite(fileName, inputImg);
+			}
 #ifdef SHOW_IMAGE
 			waitKey(0);
 #endif

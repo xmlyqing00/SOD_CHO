@@ -110,7 +110,7 @@ int float2sign(const double &f) {
 
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
-	int diffRes = 0.3 * sqr( (int)p0.val[0] - (int)p1.val[0] );
+	int diffRes = 0.2 * sqr( (int)p0.val[0] - (int)p1.val[0] );
 	//int diffRes = 0;
 	for ( int i = 1; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );
@@ -198,19 +198,20 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 	inputImg = imread( imgName );
 #ifdef SHOW_IMAGE
 	imwrite("Input_Image.jpg", inputImg);
+//	FILE *inputFile = fopen("input.txt", "w");
+//	for (int y = 0; y < inputImg.rows; y++) {
+//		for (int x = 0; x < inputImg.cols; x++) {
+//			for (int k = 0; k < 3; k++) {
+//				fprintf(inputFile, "%u\n", inputImg.ptr<Vec3b>(y)[x].val[k]);
+//			}
+//		}
+//	}
+//	fclose(inputFile);
 #endif
 	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
-	GaussianBlur(tmpImg, tmpImg, Size(), 0.5, 0, BORDER_REPLICATE);
+	GaussianBlur(tmpImg, tmpImg, Size(3,3), 0.8, 0, BORDER_REPLICATE);
 	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
 
-#ifdef SHOW_IMAGE
-	Mat channels[3];
-	split(LABImg, channels);
-	imshow("0", channels[0]);
-	imshow("1", channels[1]);
-	imshow("2", channels[2]);
-	imshow("Input_Image.png", inputImg);
-#endif
 }
 
 void writeRegionImageRandom( const int regionCount, const Mat &pixelRegion, const char *imgName,

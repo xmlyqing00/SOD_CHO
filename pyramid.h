@@ -93,8 +93,7 @@ void buildPyramidRegion(vector<Mat> &pyramidRegion, vector<int> &_regionCount,
 #ifdef SHOW_IMAGE
 		char fileName[100];
 		sprintf(fileName, "Pyramid_%d.png", pyramidIdx);
-		writeRegionImageRandom(regionCount, newPixelRegion, fileName, 1, 1);
-		waitKey(1);
+		writeRegionImageRandom(regionCount, newPixelRegion, fileName, 0, 1);
 #endif
 	}
 }

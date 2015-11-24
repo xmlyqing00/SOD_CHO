@@ -47,7 +47,8 @@ void normalizeVecd(vector<double> &vec) {
 	}
 }
 
-void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion) {
+void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
+					const vector<Mat> &pyramidRegion, const Mat &LABImg) {
 
 	int baseRegionCount = regionCount.back();
 	vector<double> regionSaliency(baseRegionCount, 0);
@@ -78,25 +79,14 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 		delete[] regionElementCount;
 	}
 
-	// update with overlap
 	int *regionElementCount = new int[baseRegionCount];
 	vector<Point> *regionElement = new vector<Point>[baseRegionCount];
 	memset(regionElementCount, 0, sizeof(int)*baseRegionCount);
 	getRegionElement(regionElement, regionElementCount, pyramidRegion.back());
 
+	// update with overlap
 	for (int i = 0; i < baseRegionCount; i++) {
 		regionSaliency[i] = (double)regionOverlap[i] / (overlapCount * regionElementCount[i]);
-	}
-
-	normalizeVecd(regionSaliency);
-
-	// update with center bias;
-	Point midP(imgSize.width/2, imgSize.height/2);
-	for (int i = 0; i < baseRegionCount; i++) {
-
-		double centerBias;
-		getCenterBias(centerBias, regionElement[i], midP);
-		regionSaliency[i] *= centerBias;
 	}
 
 	normalizeVecd(regionSaliency);
@@ -114,6 +104,8 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 			}
 		}
 
+		double smooth_ratio = 0.5 + 0.5 * (double)(PYRAMID_SIZE - pyramidIdx - 1) / PYRAMID_SIZE;
+
 		for (int i = 0; i < regionCount[pyramidIdx]; i++) {
 
 			double meanSaliency = 0;
@@ -130,9 +122,50 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 			for (int j = 0; j < baseRegionCount; j++) {
 
 				if (regionComponent.ptr<uchar>(i)[j] == 0) continue;
-				regionSaliency[j] = (regionSaliency[j] + meanSaliency) / 2;
+				regionSaliency[j] = meanSaliency + smooth_ratio * (regionSaliency[j] - meanSaliency);
 			}
 		}
+	}
+
+	normalizeVecd(regionSaliency);
+
+	// update saliency with region contrast
+	vector<Vec3b> regionColor;
+	const double sigma_color = 128.0;
+	getRegionColor(regionColor, baseRegionCount, pyramidRegion.back(), LABImg);
+
+	Mat regionDist;
+	const double sigma_width = 0.4;
+	getRegionDist(regionDist, pyramidRegion.back(), baseRegionCount);
+
+	Point midP(imgSize.width/2, imgSize.height/2);
+
+	vector<double> colorContrast(baseRegionCount, 0);
+	for (int i = 0; i < baseRegionCount; i++) {
+
+		for (int j = 0; j < baseRegionCount; j++) {
+
+			if (j == i) continue;
+
+			double dist = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
+			double color = colorDiff(regionColor[i], regionColor[j]) / sigma_color;
+			int size = regionElementCount[j];
+
+			colorContrast[i] += size * dist * color;
+
+			//cout << size << " " << dist << " " << color << " " << size * dist * color << endl;
+		}
+
+		double centerBias;
+		getCenterBias(centerBias, regionElement[i], midP);
+		colorContrast[i] *= centerBias;
+	}
+
+	normalizeVecd(colorContrast);
+
+	for (int i = 0; i < baseRegionCount; i++) {
+		//cout << colorContrast[i] << " " << regionSaliency[i] << endl;
+		regionSaliency[i] *= colorContrast[i];
 	}
 
 	normalizeVecd(regionSaliency);
@@ -144,10 +177,6 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
 		}
 	}
-
-#ifdef SHOW_IMAGE
-	imshow("Saliency_Image", saliencyMap);
-#endif
 
 	delete[] regionElement;
 	delete[] regionElementCount;
