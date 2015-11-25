@@ -12,7 +12,7 @@ int main(int args, char **argv) {
 #endif
 	int testNum = 0;
 
-	for (int PARAM1 = 115; PARAM1 < 255; PARAM1 += 500) {
+	for (int PARAM1 = 0; PARAM1 < 255; PARAM1 += 5) {
 
 #ifdef LOG
 		fprintf(testConfig, "%d\tThreshold %d\t", testNum, PARAM1);
@@ -31,8 +31,8 @@ int main(int args, char **argv) {
 //		map<string, Rect> userData;
 //		getUserData_MSRA(userData, argv[1]);
 
-		map<string, Mat> binaryMask;
-		getUserData_1000(binaryMask, "test/binarymask");
+		//map<string, Mat> binaryMask;
+		//getUserData_1000(binaryMask, "test/binarymask");
 
 		vector<double> precision, recall;
 		DIR *testDir = opendir(dirName);
@@ -43,7 +43,7 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 101) break;
+			if (fileNum == 1001) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -67,7 +67,7 @@ int main(int args, char **argv) {
 			getSaliencyObj(saliencyObj, saliencyMap);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
-			getEvaluateResult_1000(precision, recall, saliencyObj, binaryMask, testFile->d_name, PARAM1);
+			//getEvaluateResult_1000(precision, recall, saliencyObj, binaryMask, testFile->d_name, PARAM1);
 
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
@@ -77,8 +77,8 @@ int main(int args, char **argv) {
 			tmpMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 			tmpMap.copyTo(resultMap(Rect(0, 0, matSize.width, matSize.height)));
 
-			cvtColor(binaryMask[string(testFile->d_name)], tmpMap, COLOR_GRAY2RGB);
-			tmpMap.copyTo(resultMap(Rect(matSize.width, 0, matSize.width, matSize.height)));
+			//cvtColor(binaryMask[string(testFile->d_name)], tmpMap, COLOR_GRAY2RGB);
+			//tmpMap.copyTo(resultMap(Rect(matSize.width, 0, matSize.width, matSize.height)));
 
 			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2RGB);
 			tmpMap.copyTo(resultMap(Rect(0, matSize.height, matSize.width, matSize.height)));
@@ -90,21 +90,21 @@ int main(int args, char **argv) {
 			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
-			sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
+			//sprintf(fileName, "test/result/%04d_%s", (int)(precision.back()*10000), testFile->d_name);
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
-			imwrite(fileName, resultMap);
+			//imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
-			if (precision.back() < 0.8 || recall.back() < 0.8) {
-				char fileName[100];
-				sprintf(fileName, "test/negative/%s", testFile->d_name);
-				imwrite(fileName, inputImg);
-			} else {
-				char fileName[100];
-				sprintf(fileName, "test/positive/%s", testFile->d_name);
-				imwrite(fileName, inputImg);
-			}
+//			if (precision.back() < 0.8 || recall.back() < 0.8) {
+//				char fileName[100];
+//				sprintf(fileName, "test/negative/%s", testFile->d_name);
+//				imwrite(fileName, inputImg);
+//			} else {
+//				char fileName[100];
+//				sprintf(fileName, "test/positive/%s", testFile->d_name);
+//				imwrite(fileName, inputImg);
+//			}
 #ifdef SHOW_IMAGE
 			waitKey(0);
 #endif

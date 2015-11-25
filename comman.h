@@ -1,7 +1,8 @@
 #ifndef COMMAN_H
 #define COMMAN_H
 
-//#define SHOW_IMAGE
+//#define LOG
+#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
 #define POS_NEG_RESULT_OUTPUT
@@ -110,7 +111,7 @@ int float2sign(const double &f) {
 
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
-	int diffRes = 0.2 * sqr( (int)p0.val[0] - (int)p1.val[0] );
+	int diffRes = 0.5 * sqr( (int)p0.val[0] - (int)p1.val[0] );
 	//int diffRes = 0;
 	for ( int i = 1; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );

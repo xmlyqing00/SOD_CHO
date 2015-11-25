@@ -20,7 +20,7 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &saliencyMap) {
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 
-			if (saliencyMap.ptr<uchar>(y)[x] <= 30) {
+			if (saliencyMap.ptr<uchar>(y)[x] <= 125) {
 
 				if (saliencyMap.ptr<uchar>(y)[x] < 10) {
 					mask.ptr<uchar>(y)[x] = GC_BGD;
@@ -77,6 +77,10 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &saliencyMap) {
 	}
 	saliencyObj = Mat(imgSize, CV_8UC1, Scalar(0));
 	saliencyObj.setTo(Scalar(255), mask & 1);
+
+#ifdef SHOW_IMAGE
+	imwrite("Salient_Region.png", saliencyObj);
+#endif
 }
 
 #endif // CUTOBJ

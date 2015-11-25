@@ -108,7 +108,7 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 	// get region represent color
 	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
-	cout << regionCount << endl;
+	//cout << regionCount << endl;
 
 #ifdef SHOW_IMAGE
 	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png", 1, 1);
