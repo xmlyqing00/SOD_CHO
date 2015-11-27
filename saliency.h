@@ -2,6 +2,7 @@
 #define SALIENCY_H
 
 #include "comman.h"
+#include "type_que.h"
 
 void getOverlap(vector<int> &regionOverlap, const Mat &curRegionMap, const int &curIdx,
 				const Mat &baseRegionMap, const Mat &convexMap) {
@@ -47,11 +48,26 @@ void normalizeVecd(vector<double> &vec) {
 	}
 }
 
-void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
-					const vector<Mat> &pyramidRegion, const Mat &LABImg) {
+void writeSaliencyMap(Mat &saliencyMap, const vector<double> &regionSaliency, const Mat &pixelRegion,
+					  const Size &imgSize, const char *fileName, const bool writeFlag) {
+
+	saliencyMap = Mat(imgSize, CV_8UC1, Scalar(0));
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
+		}
+	}
+
+	if (writeFlag) imwrite(fileName, saliencyMap);
+
+}
+
+void getBaseSaliencyMap(vector<double> &regionSaliency, const vector<int> &regionCount,
+						const vector<Mat> &pyramidRegion) {
 
 	int baseRegionCount = regionCount.back();
-	vector<double> regionSaliency(baseRegionCount, 0);
+	regionSaliency = vector<double>(baseRegionCount, 0);
 	vector<int> regionOverlap(baseRegionCount, 0);
 	Size imgSize = pyramidRegion[0].size();
 
@@ -88,6 +104,9 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
 	for (int i = 0; i < baseRegionCount; i++) {
 		regionSaliency[i] = (double)regionOverlap[i] / (overlapCount * regionElementCount[i]);
 	}
+
+	delete[] regionElement;
+	delete[] regionElementCount;
 
 	normalizeVecd(regionSaliency);
 
@@ -134,19 +153,18 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
 	}
 
 	normalizeVecd(regionSaliency);
+}
 
-	saliencyMap = Mat(imgSize, CV_8UC1, Scalar(0));
-	for (int y = 0; y < imgSize.height; y++) {
-		for (int x = 0; x < imgSize.width; x++) {
-			int regionIdx = pyramidRegion.back().ptr<int>(y)[x];
-			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
-		}
-	}
+void updateCenterBias(vector<double> &regionSaliency, const Mat &pixelRegion, const int regionCount) {
 
-	imwrite("Saliency_Map_Basic.png", saliencyMap);
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	memset(regionElementCount, 0, sizeof(int)*regionCount);
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
 
+	Size imgSize = pixelRegion.size();
 	Point midP(imgSize.width/2, imgSize.height/2);
-	for (int i = 0; i < baseRegionCount; i++) {
+	for (int i = 0; i < regionCount; i++) {
 		double centerBias;
 		getCenterBias(centerBias, regionElement[i], midP);
 		regionSaliency[i] *= centerBias;
@@ -154,20 +172,290 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
 
 	normalizeVecd(regionSaliency);
 
-	saliencyMap = Mat(imgSize, CV_8UC1, Scalar(0));
+	delete[] regionElement;
+	delete[] regionElementCount;
+}
+
+void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, const int regionCount) {
+
+	if (!borderMap.empty()) {
+		saliencyMap.setTo(0, borderMap);
+		return;
+	}
+
+	Size imgSize = saliencyMap.size();
+	borderMap = Mat(imgSize, CV_8UC1, Scalar(255));
+	borderMap(Rect(BORDER_WIDTH, BORDER_WIDTH, imgSize.width-2*BORDER_WIDTH, imgSize.height-2*BORDER_WIDTH)).setTo(0);
+	vector<int> regionSize(regionCount, 0);
+	vector<int> regionBorderCount(regionCount, 0);
+
+	TypeQue<Point> &que = *(new TypeQue<Point>);
+	Mat visited(imgSize, CV_8UC1, Scalar(0));
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
-			int regionIdx = pyramidRegion.back().ptr<int>(y)[x];
-			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			if (borderMap.ptr<uchar>(y)[x] == 255) {
+				regionBorderCount[regionIdx]++;
+				que.push(Point(x,y));
+				visited.ptr<uchar>(y)[x] = 1;
+			}
+			regionSize[regionIdx]++;
+		}
+	}
+
+	vector<bool> borderRegion(regionCount, false);
+	for (int i = 0; i < regionCount; i++) {
+		if ((double)regionBorderCount[i] / regionSize[i] > BORDER_REGION) {
+			borderRegion[i] = true;
+		}
+	}
+
+	while (!que.empty()) {
+
+		Point nowP = que.front();
+		que.pop();
+
+		for (int k = 0; k < PIXEL_CONNECT; k++) {
+
+			Point newP = nowP + dxdy[k];
+			if (isOutside(newP.x, newP.y, imgSize.width, imgSize.height)) continue;
+			if (visited.ptr<uchar>(newP.y)[newP.x] == 1) continue;
+			if (borderRegion[pixelRegion.ptr<int>(newP.y)[newP.x]]) {
+				borderMap.ptr<uchar>(newP.y)[newP.x] = 255;
+				visited.ptr<uchar>(newP.y)[newP.x] = 1;
+				que.push(newP);
+			}
+		}
+	}
+
+	delete &que;
+
+	saliencyMap.setTo(0, borderMap);
+
+#ifdef SHOW_IMAGE
+	imshow("Border_Map", borderMap);
+	imwrite("Border_Map.png", borderMap);
+#endif
+
+}
+
+void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &LABImg) {
+
+	Size imgSize = LABImg.size();
+	vector<TypeColorSpace> colorSet;
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			colorSet.push_back(TypeColorSpace(Point(x,y), LABImg.ptr<Vec3b>(y)[x]));
+		}
+	}
+
+	vector< vector<TypeColorSpace> > medianCutQue;
+	medianCutQue.push_back(colorSet);
+
+	for (int level = 0; level < QUANTIZE_LEVEL; level++) {
+
+		vector< vector<TypeColorSpace> > tmpQue;
+
+		for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+			Vec3b minColor(255, 255, 255);
+			Vec3b maxColor(0, 0, 0);
+			for (size_t j = 0; j < medianCutQue[i].size(); j++) {
+				for (int k = 0; k < 3; k++) {
+					minColor.val[k] = min(minColor.val[k], medianCutQue[i][j].color[k]);
+					maxColor.val[k] = max(maxColor.val[k], medianCutQue[i][j].color[k]);
+				}
+			}
+
+			int cut_dimension = 0;
+			int max_range = 0;
+			for (int k = 0; k < 3; k++) {
+				if (maxColor.val[k] - minColor.val[k] > max_range) {
+					max_range = maxColor.val[k] - minColor.val[k];
+					cut_dimension = k;
+				}
+			}
+
+			switch (cut_dimension) {
+			case 0:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor0);
+				break;
+			case 1:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor1);
+				break;
+			case 2:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor2);
+				break;
+			default:
+				cout << "error in cut" << endl;
+				exit(0);
+			}
+
+			int mid_pos = medianCutQue[i].size() / 2;
+			vector<TypeColorSpace> part0(medianCutQue[i].begin(), medianCutQue[i].begin() + mid_pos);
+			vector<TypeColorSpace> part1(medianCutQue[i].begin() + mid_pos, medianCutQue[i].end());
+
+			tmpQue.push_back(part0);
+			tmpQue.push_back(part1);
+		}
+
+		medianCutQue = tmpQue;
+	}
+
+	for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+		Vec3b meanColor = Vec3b(medianCutQue[i][medianCutQue[i].size()>>1].color);
+		platte.push_back(meanColor);
+	}
+
+	int range = int(0.1 * platte.size());
+	for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+		for (size_t j = 0; j < medianCutQue[i].size(); j++) {
+
+			Vec3b c = Vec3b(medianCutQue[i][j].color);
+
+			size_t best_fit = i;
+			int min_diff = INF;
+			for (int k = 0; k < range; k++) {
+
+				int tmpIdx = i + k;
+				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
+				int tmp = colorDiff(c, platte[tmpIdx]);
+				if (tmp < min_diff) {
+					min_diff = tmp;
+					best_fit = tmpIdx;
+				}
+
+				tmpIdx = i - k;
+				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
+				tmp = colorDiff(c, platte[tmpIdx]);
+				if (tmp < min_diff) {
+					min_diff = tmp;
+					best_fit = tmpIdx;
+				}
+			}
+			colorMap.at<uchar>(medianCutQue[i][j].pos) = best_fit;
+		}
+	}
+
+
+}
+
+void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
+
+	Size imgSize = saliencyMap.size();
+	Mat colorMap(imgSize, CV_8UC1);
+	vector<Vec3b> platte;
+	quantizeColorSpace(colorMap, platte, LABImg);
+
+	vector<int> colorCount(platte.size(), 0);
+	vector<int> colorSaliency(platte.size(), 0);
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+
+			int colorIdx = colorMap.ptr<uchar>(y)[x];
+			colorCount[colorIdx]++;
+			colorSaliency[colorIdx] += saliencyMap.ptr<uchar>(y)[x];
+		}
+	}
+
+	int cnt = 0;
+	for (size_t i = 0; i < platte.size(); i++) cnt += colorCount[i];
+	for (size_t i = 0; i < platte.size(); i++) colorSaliency[i] /= colorCount[i];
+
+	int smooth_range = int(0.1 * platte.size());
+	vector<int> _colorSaliency(platte.size(), 0);
+	for (size_t i = 0; i < platte.size(); i++) {
+
+		double sigma_color = 32;
+		vector< pair<int, double> > similarColor;
+		for (size_t j = 0; j < platte.size(); j++) {
+			double diff = exp(-colorDiff(platte[i],platte[j]) / sigma_color);
+			similarColor.push_back(make_pair(colorSaliency[j],diff));
+		}
+
+		sort(similarColor.begin(), similarColor.end(), cmpSimilarColor);
+
+		double sum_diff = 0;
+		for (int j = 0; j < smooth_range; j++) sum_diff += similarColor[j].second;
+
+		double new_saliency = 0;
+		for (int j = 0; j < smooth_range; j++) {
+			new_saliency += similarColor[j].second / sum_diff * similarColor[j].first;
+		}
+
+		_colorSaliency[i] = min(255, cvRound(new_saliency));
+	}
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			saliencyMap.ptr<uchar>(y)[x] = _colorSaliency[colorMap.ptr<uchar>(y)[x]];
 		}
 	}
 
 #ifdef SHOW_IMAGE
-	imwrite("Saliency_Map.png", saliencyMap);
+	Mat quantizeImg(imgSize, CV_8UC3);
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			quantizeImg.ptr<Vec3b>(y)[x] = platte[colorMap.ptr<uchar>(y)[x]];
+		}
+	}
+	cvtColor(quantizeImg, quantizeImg, COLOR_Lab2RGB);
+	imshow("Quantize_Image.png", quantizeImg);
+	imwrite("Quantize_Image.png", quantizeImg);
+#endif
+}
+
+void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount) {
+
+	vector<int> regionSaliency(regionCount, 0);
+	vector<int> regionSize(regionCount, 0);
+	Size imgSize = saliencyMap.size();
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			regionSaliency[regionIdx] += saliencyMap.ptr<uchar>(y)[x];
+			regionSize[regionIdx]++;
+		}
+	}
+
+	for (int i = 0; i < regionCount; i++) regionSaliency[i] /= regionSize[i];
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx];
+		}
+	}
+}
+
+void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
+					const vector<Mat> &pyramidRegion, const Mat &LABImg) {
+
+	vector<double> regionSaliency;
+	getBaseSaliencyMap(regionSaliency, regionCount, pyramidRegion);
+#ifdef SHOW_IMAGE
+	writeSaliencyMap(saliencyMap, regionSaliency, pyramidRegion.back(), LABImg.size(), "Saliency_Map_Base.png", 1);
 #endif
 
-	delete[] regionElement;
-	delete[] regionElementCount;
+	updateCenterBias(regionSaliency, pyramidRegion.back(), regionCount.back());
+
+	writeSaliencyMap(saliencyMap, regionSaliency, pyramidRegion.back(), LABImg.size(), "Saliency_Map_Center.png", 0);
+
+	Mat borderMap;
+	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
+
+	updateColorSmooth(saliencyMap, LABImg);
+
+	updateRegionSmooth(saliencyMap, pyramidRegion.back(), regionCount.back());
+
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+
+	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
 
 }
 

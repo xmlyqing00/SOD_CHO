@@ -13,6 +13,7 @@ public:
 	TypeQue() {
 		p_front = 0;
 		p_size = 0;
+		data.clear();
 	}
 	bool empty() {
 		if ( p_size == 0 ) return true;
@@ -42,5 +43,8 @@ public:
 		for ( int i = p_front; i < p_size; i++ ) cout << data[i] << endl;
 	}
 };
+
+// TypeQue<int> &que = *(new TypeQue<int>);
+// delete &que;
 
 #endif // TYPE_QUE_H

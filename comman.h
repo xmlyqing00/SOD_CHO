@@ -2,7 +2,7 @@
 #define COMMAN_H
 
 //#define LOG
-#define SHOW_IMAGE
+//#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
 #define POS_NEG_RESULT_OUTPUT
@@ -33,12 +33,15 @@ using namespace cv;
 const Point dxdy[8] = {Point( -1, 0 ), Point( 0, -1 ), Point( 1, 0 ), Point( 0, 1 ),
 					   Point( -1, -1), Point( 1, -1 ), Point( -1, 1), Point( 1, 1 )};
 const double PI = 3.14159265358;
-const float FLOAT_EPS = 1e-8;
+const double FLOAT_EPS = 1e-8;
 const int PIXEL_CONNECT = 8;
 const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
 const int MIN_REGION_SIZE = 200; // 200
 const int SEGMENT_THRESHOLD = 80; // 80
+const int BORDER_WIDTH = 8;
+const double BORDER_REGION = 0.1;
+const int QUANTIZE_LEVEL = 6;
 
 const float MIN_REGION_CONNECTED = 0.001;
 const float MIN_COVERING = 0.01;
@@ -63,39 +66,41 @@ struct TypeEdge {
 	}
 };
 
-struct TypeLayer {
-	float z_value;
-	int idx;
-	TypeLayer() {
-		z_value = 0;
-		idx = 0;
+struct TypeColorSpace {
+	Point pos;
+	uchar color[3];
+	TypeColorSpace() {
+		pos = Point(0, 0);
+		color[0] = color[1] = color[2] = 0;
 	}
-	TypeLayer(float _z_value, int _idx) {
-		z_value = _z_value;
-		idx = _idx;
+	TypeColorSpace(Point _pos, Vec3b _color) {
+		pos = _pos;
+		for (int i = 0; i < 3; i++) color[i] = _color.val[i];
 	}
-};
-
-struct TypeLine {
-	Point u, v;
-	TypeLine() {
-		u = Point(0, 0);
-		v = Point(0, 0);
-	}
-	TypeLine(Point _u, Point _v) {
-		u = _u;
-		v = _v;
+	TypeColorSpace(Point _pos, Vec3i _color) {
+		pos = _pos;
+		for (int i = 0; i < 3; i++) color[i] = (uchar)_color.val[i];
 	}
 };
-
-bool cmpPoint( const Point &p0, const Point &p1 ) {
-	if ( p0.y == p1.y ) {
-		return p0.x < p1.x;
-	} else return p0.y < p1.y;
-}
 
 bool cmpTypeEdge(const TypeEdge &e1, const TypeEdge &e2) {
 	return e1.w < e2.w;
+}
+
+bool cmpColor0(const TypeColorSpace &c0, const TypeColorSpace &c1) {
+	return c0.color[0] < c1.color[0];
+}
+
+bool cmpColor1(const TypeColorSpace &c0, const TypeColorSpace &c1) {
+	return c0.color[1] < c1.color[1];
+}
+
+bool cmpColor2(const TypeColorSpace &c0, const TypeColorSpace &c1) {
+	return c0.color[2] < c1.color[2];
+}
+
+bool cmpSimilarColor(const pair<int,double> &p0, const pair<int,double> &p1) {
+	return p0.second > p1.second;
 }
 
 bool isOutside( int x, int y, int boundX, int boundY ) {
@@ -256,63 +261,6 @@ void writeRegionImageRepresent( const int regionCount, const Mat &pixelRegion, c
 	if (writeFlag) imwrite(imgName, regionImg);
 }
 
-void getRegionColor(vector<Vec3b> &regionColor, const int regionCount, const Mat &pixelRegion, const Mat &img) {
-
-	Vec3i *_regionColor = new Vec3i[regionCount];
-	int *regionSize = new int[regionCount];
-	for (int i = 0; i < regionCount; i++) {
-		_regionColor[i] =  Vec3i(0, 0, 0);
-		regionSize[i] = 0;
-	}
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionSize[regionIdx]++;
-			_regionColor[regionIdx] += img.ptr<Vec3b>(y)[x];
-		}
-	}
-
-	regionColor = vector<Vec3b>(regionCount);
-
-	for (int i = 0; i < regionCount; i++) {
-		regionColor[i] = _regionColor[i] / regionSize[i];
-	}
-
-	delete[] regionSize;
-	delete[] _regionColor;
-
-}
-
-void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount) {
-
-	vector<Point2d> regionCenter(regionCount, Point(0, 0));
-	vector<int> regionSize(regionCount, 0);
-
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionCenter[regionIdx] += Point2d(x,y);
-			regionSize[regionIdx]++;
-		}
-	}
-
-	int width = pixelRegion.cols;
-	int height = pixelRegion.rows;
-	for (int i = 0; i < regionCount; i++) {
-		regionCenter[i].x /= width * regionSize[i];
-		regionCenter[i].y /= height * regionSize[i];
-	}
-
-	regionDist = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
-	for (int i = 0; i < regionCount; i++) {
-		for (int j = i + 1; j < regionCount; j++) {
-			regionDist.ptr<double>(i)[j] = sqr(regionCenter[i].x-regionCenter[j].x) + sqr(regionCenter[i].y-regionCenter[j].y);
-			regionDist.ptr<double>(j)[i] = regionDist.ptr<double>(i)[j];
-		}
-	}
-}
 
 #endif // COMMAN_H
 

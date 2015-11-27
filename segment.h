@@ -12,6 +12,64 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
+void getRegionColor(vector<Vec3b> &regionColor, const int regionCount, const Mat &pixelRegion, const Mat &img) {
+
+	Vec3i *_regionColor = new Vec3i[regionCount];
+	int *regionSize = new int[regionCount];
+	for (int i = 0; i < regionCount; i++) {
+		_regionColor[i] =  Vec3i(0, 0, 0);
+		regionSize[i] = 0;
+	}
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			regionSize[regionIdx]++;
+			_regionColor[regionIdx] += img.ptr<Vec3b>(y)[x];
+		}
+	}
+
+	regionColor = vector<Vec3b>(regionCount);
+
+	for (int i = 0; i < regionCount; i++) {
+		regionColor[i] = _regionColor[i] / regionSize[i];
+	}
+
+	delete[] regionSize;
+	delete[] _regionColor;
+
+}
+
+void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount) {
+
+	vector<Point2d> regionCenter(regionCount, Point(0, 0));
+	vector<int> regionSize(regionCount, 0);
+
+	for (int y = 0; y < pixelRegion.rows; y++) {
+		for (int x = 0; x < pixelRegion.cols; x++) {
+
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			regionCenter[regionIdx] += Point2d(x,y);
+			regionSize[regionIdx]++;
+		}
+	}
+
+	int width = pixelRegion.cols;
+	int height = pixelRegion.rows;
+	for (int i = 0; i < regionCount; i++) {
+		regionCenter[i].x /= width * regionSize[i];
+		regionCenter[i].y /= height * regionSize[i];
+	}
+
+	regionDist = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			regionDist.ptr<double>(i)[j] = sqr(regionCenter[i].x-regionCenter[j].x) + sqr(regionCenter[i].y-regionCenter[j].y);
+			regionDist.ptr<double>(j)[i] = regionDist.ptr<double>(i)[j];
+		}
+	}
+}
+
 void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
 
 	vector<TypeEdge> edges;
