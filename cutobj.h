@@ -2,6 +2,7 @@
 #define CUTOBJ
 
 #include "comman.h"
+#include "type_que.h"
 
 void setBGBorder(Mat &mask, const int border) {
 
@@ -15,27 +16,64 @@ void setBGBorder(Mat &mask, const int border) {
 void getSaliencyObj(Mat &saliencyObj, const Mat &saliencyMap) {
 
 	Size imgSize = saliencyMap.size();
-	Mat mask(imgSize, CV_8UC1);
+
+	Mat mask(imgSize, CV_8UC1, Scalar(GC_PR_BGD));
+	mask.setTo(GC_BGD, 255 - saliencyMap);
+
+	TypeQue<Point> &que = *(new TypeQue<Point>);
+	Mat visited(imgSize, CV_8UC1, Scalar(0));
+	vector< vector<Point> > candidateClusters;
+	vector<long long> candidateSaliency;
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 
-			if (saliencyMap.ptr<uchar>(y)[x] <= 125) {
+			if (saliencyMap.ptr<uchar>(y)[x] <= SALIENCY_THRESHOLD) continue;
+			if (visited.ptr<uchar>(y)[x] == 1) continue;
 
-				if (saliencyMap.ptr<uchar>(y)[x] < 10) {
-					mask.ptr<uchar>(y)[x] = GC_BGD;
-				} else {
-					mask.ptr<uchar>(y)[x] = GC_PR_BGD;
-				}
+			vector<Point> candidateCluster;
+			que.push(Point(x,y));
+			visited.ptr<uchar>(y)[x] = 1;
+			long long saliencyValue = 0;
 
-			} else {
-				if (saliencyMap.ptr<uchar>(y)[x] >= 240) {
-					mask.ptr<uchar>(y)[x] = GC_PR_FGD;
-				} else {
-					mask.ptr<uchar>(y)[x] = GC_PR_FGD;
+			while (!que.empty()) {
+
+				Point nowP = que.front();
+				que.pop();
+				candidateCluster.push_back(nowP);
+				saliencyValue += saliencyMap.at<uchar>(nowP);
+
+				for (int k = 0; k < PIXEL_CONNECT; k++) {
+
+					Point newP = nowP + dxdy[k];
+					if (isOutside(newP.x, newP.y, imgSize.width, imgSize.height)) continue;
+					if (saliencyMap.at<uchar>(newP) <= SALIENCY_THRESHOLD) continue;
+					if (visited.at<uchar>(newP) == 1) continue;
+
+					visited.at<uchar>(newP) = 1;
+					que.push(newP);
 				}
 			}
+
+			candidateClusters.push_back(candidateCluster);
+			candidateSaliency.push_back(saliencyValue);
+
 		}
+	}
+
+	long long max_saliency = 0;
+	int regionsIdx = 0;
+	for (size_t i = 0; i < candidateClusters.size(); i++) {
+		if (max_saliency < candidateSaliency[i]) {
+			max_saliency = candidateSaliency[i];
+			regionsIdx = i;
+		}
+	}
+
+
+
+	for (size_t i = 0; i < candidateClusters[regionsIdx].size(); i++) {
+		mask.at<uchar>(candidateClusters[regionsIdx][i]) = GC_PR_FGD;
 	}
 
 	int border = 15;

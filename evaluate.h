@@ -148,6 +148,8 @@ void getEvaluateResult_1000(vector<double> &precision, vector<double> &recall,
 	Mat saliencyMap;
 	threshold(_saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
+	imshow("eval0", _saliencyMap);
+	imshow("eval1", saliencyMap);
 	Mat mask = binaryMask[string(imgName)];
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;

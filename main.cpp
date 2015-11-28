@@ -12,7 +12,7 @@ int main(int args, char **argv) {
 #endif
 	int testNum = 0;
 
-	for (int PARAM1 = 0; PARAM1 < 255; PARAM1 += 5) {
+	for (int PARAM1 = 250; PARAM1 < 255; PARAM1 += 30) {
 
 #ifdef LOG
 		fprintf(testConfig, "%d\tThreshold %d\t", testNum, PARAM1);
@@ -43,7 +43,8 @@ int main(int args, char **argv) {
 
 			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 			fileNum++;
-			if (fileNum == 1001) break;
+			//if (fileNum % 5 != 0) continue;
+			if (fileNum >= 501) break;
 			cout << fileNum << " " << testFile->d_name << endl;
 
 			char inputImgName[100];
@@ -53,21 +54,22 @@ int main(int args, char **argv) {
 			readImage(inputImgName, inputImg, LABImg);
 
 			Mat W;
-			Mat pixelRegion;
-			segmentImage(W, pixelRegion, LABImg);
+			Mat over_pixelRegion;
+			int over_regionCount;
+			segmentImage(W, over_pixelRegion, over_regionCount, LABImg);
 
 			vector<Mat> pyramidRegion;
 			vector<int> regionCount;
-			buildPyramidRegion(pyramidRegion, regionCount, pixelRegion, W);
+			buildPyramidRegion(pyramidRegion, regionCount, over_pixelRegion, W);
 
 			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, LABImg);
+			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg);
 
 			Mat saliencyObj;
 			getSaliencyObj(saliencyObj, saliencyMap);
 
 			//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
-			getEvaluateResult_1000(precision, recall, saliencyObj, binaryMask, testFile->d_name, PARAM1);
+			getEvaluateResult_1000(precision, recall, saliencyMap, binaryMask, testFile->d_name, PARAM1);
 
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
@@ -105,9 +107,10 @@ int main(int args, char **argv) {
 				sprintf(fileName, "test/positive/%s", testFile->d_name);
 				imwrite(fileName, inputImg);
 			}
+#endif
+
 #ifdef SHOW_IMAGE
 			waitKey(0);
-#endif
 #endif
 
 			double sum1 = 0;

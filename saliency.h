@@ -51,13 +51,17 @@ void normalizeVecd(vector<double> &vec) {
 void writeSaliencyMap(Mat &saliencyMap, const vector<double> &regionSaliency, const Mat &pixelRegion,
 					  const Size &imgSize, const char *fileName, const bool writeFlag) {
 
-	saliencyMap = Mat(imgSize, CV_8UC1, Scalar(0));
+	if (saliencyMap.empty()) {
+		saliencyMap = Mat(imgSize, CV_8UC1, Scalar(255));
+	}
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx] * 255;
+			saliencyMap.ptr<uchar>(y)[x] *= regionSaliency[regionIdx];
 		}
 	}
+
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 	if (writeFlag) imwrite(fileName, saliencyMap);
 
@@ -155,7 +159,60 @@ void getBaseSaliencyMap(vector<double> &regionSaliency, const vector<int> &regio
 	normalizeVecd(regionSaliency);
 }
 
-void updateCenterBias(vector<double> &regionSaliency, const Mat &pixelRegion, const int regionCount) {
+void updateRegionContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
+
+	vector<Vec3b> regionColor;
+	const double sigma_color = 1;
+	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
+
+	Mat regionDist;
+	const double sigma_width = 0.4;
+	getRegionDist(regionDist, pixelRegion, regionCount);
+
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	memset(regionElementCount, 0, sizeof(int)*regionCount);
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
+
+	vector<double> colorContrast(regionCount, 0);
+
+	for (int i = 0; i < regionCount; i++) {
+
+		for (int j = 0; j < regionCount; j++) {
+
+			if (j == i) continue;
+
+			double dist = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
+			double color = colorDiff(regionColor[i], regionColor[j]) / sigma_color;
+			int size = regionElementCount[j];
+
+			colorContrast[i] += size * dist * color;
+
+			//cout << size << " " << dist << " " << color << " " << size * dist * color << endl;
+		}
+	}
+
+	//normalizeVecd(colorContrast);
+
+	Size imgSize = saliencyMap.size();
+	Mat _saliencyMap(imgSize, CV_32SC1);
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			_saliencyMap.ptr<int>(y)[x] = (int)saliencyMap.ptr<uchar>(y)[x] * colorContrast[regionIdx];
+		}
+	}
+
+	normalize(_saliencyMap, _saliencyMap, 0, 255, CV_MINMAX);
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			saliencyMap.ptr<uchar>(y)[x] = _saliencyMap.ptr<int>(y)[x];
+		}
+	}
+}
+
+void updateCenterBias(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount) {
 
 	int *regionElementCount = new int[regionCount];
 	vector<Point> *regionElement = new vector<Point>[regionCount];
@@ -164,13 +221,23 @@ void updateCenterBias(vector<double> &regionSaliency, const Mat &pixelRegion, co
 
 	Size imgSize = pixelRegion.size();
 	Point midP(imgSize.width/2, imgSize.height/2);
+
+	vector<double> centerBias(regionCount);
+
 	for (int i = 0; i < regionCount; i++) {
-		double centerBias;
-		getCenterBias(centerBias, regionElement[i], midP);
-		regionSaliency[i] *= centerBias;
+		getCenterBias(centerBias[i], regionElement[i], midP);
 	}
 
-	normalizeVecd(regionSaliency);
+	normalizeVecd(centerBias);
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			saliencyMap.ptr<uchar>(y)[x] *= centerBias[regionIdx];
+		}
+	}
+
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 	delete[] regionElement;
 	delete[] regionElementCount;
@@ -180,6 +247,7 @@ void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, c
 
 	if (!borderMap.empty()) {
 		saliencyMap.setTo(0, borderMap);
+		normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 		return;
 	}
 
@@ -232,6 +300,7 @@ void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, c
 	delete &que;
 
 	saliencyMap.setTo(0, borderMap);
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 #ifdef SHOW_IMAGE
 	imshow("Border_Map", borderMap);
@@ -361,9 +430,12 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 		}
 	}
 
-	int cnt = 0;
-	for (size_t i = 0; i < platte.size(); i++) cnt += colorCount[i];
 	for (size_t i = 0; i < platte.size(); i++) colorSaliency[i] /= colorCount[i];
+
+	//Mat tmp(platte);
+	//cvtColor(tmp, tmp, COLOR_Lab2RGB);
+	//cout << CV_8UC3 << tmp.type() << endl;
+	//for (size_t i = 0; i < platte.size(); i++) platte[i] = tmp.ptr<Vec3b>(0)[i];
 
 	int smooth_range = int(0.1 * platte.size());
 	vector<int> _colorSaliency(platte.size(), 0);
@@ -372,7 +444,9 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 		double sigma_color = 32;
 		vector< pair<int, double> > similarColor;
 		for (size_t j = 0; j < platte.size(); j++) {
-			double diff = exp(-colorDiff(platte[i],platte[j]) / sigma_color);
+			double diff = exp(-(double)colorDiff(platte[i],platte[j]) / sigma_color);
+			//cout << colorDiff(platte[i],platte[j]) << " " << diff << endl;
+			//double diff = -colorDiff(platte[i],platte[j]);
 			similarColor.push_back(make_pair(colorSaliency[j],diff));
 		}
 
@@ -394,6 +468,8 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 			saliencyMap.ptr<uchar>(y)[x] = _colorSaliency[colorMap.ptr<uchar>(y)[x]];
 		}
 	}
+
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 #ifdef SHOW_IMAGE
 	Mat quantizeImg(imgSize, CV_8UC3);
@@ -422,7 +498,9 @@ void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regi
 		}
 	}
 
-	for (int i = 0; i < regionCount; i++) regionSaliency[i] /= regionSize[i];
+	for (int i = 0; i < regionCount; i++) {
+		regionSaliency[i] /= regionSize[i];
+	}
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
@@ -431,32 +509,50 @@ void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regi
 			saliencyMap.ptr<uchar>(y)[x] = regionSaliency[regionIdx];
 		}
 	}
-}
-
-void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount,
-					const vector<Mat> &pyramidRegion, const Mat &LABImg) {
-
-	vector<double> regionSaliency;
-	getBaseSaliencyMap(regionSaliency, regionCount, pyramidRegion);
-#ifdef SHOW_IMAGE
-	writeSaliencyMap(saliencyMap, regionSaliency, pyramidRegion.back(), LABImg.size(), "Saliency_Map_Base.png", 1);
-#endif
-
-	updateCenterBias(regionSaliency, pyramidRegion.back(), regionCount.back());
-
-	writeSaliencyMap(saliencyMap, regionSaliency, pyramidRegion.back(), LABImg.size(), "Saliency_Map_Center.png", 0);
-
-	Mat borderMap;
-	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
-
-	updateColorSmooth(saliencyMap, LABImg);
-
-	updateRegionSmooth(saliencyMap, pyramidRegion.back(), regionCount.back());
 
 	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
-	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
+}
 
+void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion,
+					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg) {
+
+	vector<double> regionSaliency;
+	getBaseSaliencyMap(regionSaliency, regionCount, pyramidRegion);
+
+	writeSaliencyMap(saliencyMap, regionSaliency, pyramidRegion.back(), LABImg.size(), "Saliency_Map_Base.png", 1);
+
+#ifdef SHOW_IMAGE
+	imshow("base", saliencyMap);
+#endif
+	updateRegionContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
+#ifdef SHOW_IMAGE
+	imshow("contrast", saliencyMap);
+#endif
+	updateCenterBias(saliencyMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("center", saliencyMap);
+#endif
+	Mat borderMap;
+	//updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
+	updateborderMap(saliencyMap, borderMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("S_border1", saliencyMap);
+#endif
+	updateColorSmooth(saliencyMap, LABImg);
+#ifdef SHOW_IMAGE
+	imshow("S_color", saliencyMap);
+#endif
+	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("S_space", saliencyMap);
+#endif
+	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
+#ifdef SHOW_IMAGE
+
+	imshow("S_border2", saliencyMap);
+	imwrite("Saliency_Map.png", saliencyMap);
+#endif
 }
 
 

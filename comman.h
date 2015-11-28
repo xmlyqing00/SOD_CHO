@@ -2,7 +2,7 @@
 #define COMMAN_H
 
 //#define LOG
-//#define SHOW_IMAGE
+#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
 #define POS_NEG_RESULT_OUTPUT
@@ -38,12 +38,13 @@ const int PIXEL_CONNECT = 8;
 const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
 const int MIN_REGION_SIZE = 200; // 200
-const int SEGMENT_THRESHOLD = 80; // 80
+const int SEGMENT_THRESHOLD = 500; // 80
 const int BORDER_WIDTH = 8;
 const double BORDER_REGION = 0.1;
-const int QUANTIZE_LEVEL = 6;
+const int QUANTIZE_LEVEL = 5;
+const int SALIENCY_THRESHOLD = 70;
 
-const float MIN_REGION_CONNECTED = 0.001;
+const float MIN_REGION_CONNECTED = 0.01;
 const float MIN_COVERING = 0.01;
 const int MIN_REGION_NEIGHBOUR = 8;
 
@@ -116,7 +117,7 @@ int float2sign(const double &f) {
 
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
-	int diffRes = 0.5 * sqr( (int)p0.val[0] - (int)p1.val[0] );
+	int diffRes = 1 * sqr( (int)p0.val[0] - (int)p1.val[0] );
 	//int diffRes = 0;
 	for ( int i = 1; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );

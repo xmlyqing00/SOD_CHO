@@ -174,9 +174,9 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 
 }
 
-void segmentImage(Mat &W, Mat &pixelRegion, const Mat &LABImg) {
+void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg) {
 
-	int regionCount = 0;
+	regionCount = 0;
 	vector<Vec3b> regionColor;
 
 	overSegmentation(pixelRegion, regionCount, regionColor, LABImg);
