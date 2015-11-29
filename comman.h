@@ -2,10 +2,11 @@
 #define COMMAN_H
 
 //#define LOG
-#define SHOW_IMAGE
+//#define SHOW_IMAGE
 //#define DEBUG
 //#define DEBUG_DETAIL
-#define POS_NEG_RESULT_OUTPUT
+//#define POS_NEG_RESULT_OUTPUT
+#define EVALUATE_MASK
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,6 +21,7 @@
 #include <unistd.h>
 #include <utility>
 #include <iostream>
+#include <string>
 #include <map>
 #include <algorithm>
 #include <vector>
@@ -216,7 +218,7 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 //	fclose(inputFile);
 #endif
 	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
-	GaussianBlur(tmpImg, tmpImg, Size(3,3), 0.8, 0, BORDER_REPLICATE);
+	GaussianBlur(tmpImg, tmpImg, Size(), 1.2, 0, BORDER_REPLICATE);
 	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
 
 }

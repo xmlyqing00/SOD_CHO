@@ -136,21 +136,39 @@ void getUserData_1000(map<string,Mat> &binaryMask, const char *dirName) {
 		str += "jpg";
 		Mat maskMat = imread(inputImgName, 0);
 		maskMat = maskMat(Rect(CROP_WIDTH, CROP_WIDTH, maskMat.cols-2*CROP_WIDTH, maskMat.rows-2*CROP_WIDTH));
+		str = str.substr(0, str.length()-4);
 		binaryMask[str] = maskMat;
 
 	}
 }
 
-void getEvaluateResult_1000(vector<double> &precision, vector<double> &recall,
-							const Mat &_saliencyMap, map<string,Mat> &binaryMask,
-							const char *imgName, const int PARAM1) {
+void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
 
-	Mat saliencyMap;
-	threshold(_saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
+	int area_saliency = sum(saliencyMap).val[0] / 255;
+	int area_mask = sum(mask).val[0] / 255;
+	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
 
-	imshow("eval0", _saliencyMap);
-	imshow("eval1", saliencyMap);
-	Mat mask = binaryMask[string(imgName)];
+	double tmp_precision, tmp_recall;
+
+	if (area_saliency > 0) {
+		tmp_precision = (double)(area_intersection) / area_saliency;
+		tmp_recall = (double)(area_intersection) / area_mask;
+	} else {
+		tmp_precision = 0;
+		tmp_recall = 0;
+	}
+
+	precision += tmp_precision;
+	recall += tmp_recall;
+
+}
+
+void getEvaluateObj_1000(vector<double> &precision, vector<double> &recall,
+							const Mat &saliencyMap, map<string,Mat> &binaryMask,
+							const char *imgName) {
+
+	string str(imgName);
+	Mat mask = binaryMask[str.substr(0, str.length()-4)];
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;

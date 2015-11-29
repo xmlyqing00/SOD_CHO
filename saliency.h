@@ -159,6 +159,68 @@ void getBaseSaliencyMap(vector<double> &regionSaliency, const vector<int> &regio
 	normalizeVecd(regionSaliency);
 }
 
+void updateMixContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
+
+	vector<Vec3b> regionColor;
+	const double sigma_color = 1;
+	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
+
+	Mat regionDist;
+	const double sigma_width = 0.4;
+	getRegionDist(regionDist, pixelRegion, regionCount);
+
+	int *regionElementCount = new int[regionCount];
+	vector<Point> *regionElement = new vector<Point>[regionCount];
+	memset(regionElementCount, 0, sizeof(int)*regionCount);
+	getRegionElement(regionElement, regionElementCount, pixelRegion);
+
+	Size imgSize = pixelRegion.size();
+	Point midP(imgSize.width/2, imgSize.height/2);
+
+	vector<double> regionContrast(regionCount, 0);
+
+	for (int i = 0; i < regionCount; i++) {
+
+		for (int j = 0; j < regionCount; j++) {
+
+			if (j == i) continue;
+
+			double dist = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
+			double color = colorDiff(regionColor[i], regionColor[j]) / sigma_color;
+			int size = regionElementCount[j];
+
+			regionContrast[i] += size * dist * color;
+
+			//cout << size << " " << dist << " " << color << " " << size * dist * color << endl;
+		}
+
+		double centerBias;
+		getCenterBias(centerBias, regionElement[i], midP);
+		regionContrast[i] *= centerBias;
+
+	}
+
+	delete[] regionElement;
+	delete[] regionElementCount;
+
+	Mat _saliencyMap(imgSize, CV_64FC1, Scalar(0));
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			int regionIdx = pixelRegion.ptr<int>(y)[x];
+			_saliencyMap.ptr<double>(y)[x] = (double)saliencyMap.ptr<uchar>(y)[x] / 255.0 * regionContrast[regionIdx];
+		}
+	}
+
+	normalize(_saliencyMap, _saliencyMap, 0, 255, CV_MINMAX);
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			saliencyMap.ptr<uchar>(y)[x] = _saliencyMap.ptr<double>(y)[x];
+		}
+	}
+
+}
+
 void updateRegionContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
 
 	vector<Vec3b> regionColor;
@@ -525,13 +587,16 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #ifdef SHOW_IMAGE
 	imshow("base", saliencyMap);
 #endif
-	updateRegionContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
+
+	//updateMixContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
+
+	//updateRegionContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
 #ifdef SHOW_IMAGE
 	imshow("contrast", saliencyMap);
 #endif
 	updateCenterBias(saliencyMap, over_pixelRegion, over_regionCount);
 #ifdef SHOW_IMAGE
-	imshow("center", saliencyMap);
+	//imshow("center", saliencyMap);
 #endif
 	Mat borderMap;
 	//updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
@@ -553,6 +618,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 	imshow("S_border2", saliencyMap);
 	imwrite("Saliency_Map.png", saliencyMap);
 #endif
+
 }
 
 
