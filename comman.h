@@ -2,11 +2,9 @@
 #define COMMAN_H
 
 //#define LOG
-//#define SHOW_IMAGE
-//#define DEBUG
-//#define DEBUG_DETAIL
-//#define POS_NEG_RESULT_OUTPUT
-#define EVALUATE_MASK
+#define SHOW_IMAGE
+#define POS_NEG_RESULT_OUTPUT
+//#define EVALUATE_MASK
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,15 +38,11 @@ const int PIXEL_CONNECT = 8;
 const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
 const int MIN_REGION_SIZE = 200; // 200
-const int SEGMENT_THRESHOLD = 500; // 80
+const int SEGMENT_THRESHOLD = 1000; // 80
 const int BORDER_WIDTH = 8;
 const double BORDER_REGION = 0.1;
 const int QUANTIZE_LEVEL = 5;
 const int SALIENCY_THRESHOLD = 70;
-
-const float MIN_REGION_CONNECTED = 0.01;
-const float MIN_COVERING = 0.01;
-const int MIN_REGION_NEIGHBOUR = 8;
 
 #define INF 2000000000
 
@@ -119,7 +113,7 @@ int float2sign(const double &f) {
 
 int colorDiff(const Vec3b &p0, const Vec3b &p1 ) {
 
-	int diffRes = 1 * sqr( (int)p0.val[0] - (int)p1.val[0] );
+	double diffRes = 1 * sqr( (int)p0.val[0] - (int)p1.val[0] );
 	//int diffRes = 0;
 	for ( int i = 1; i < 3; i++ ) {
 		diffRes += sqr( (int)p0.val[i] - (int)p1.val[i] );
@@ -219,7 +213,16 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 #endif
 	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 	GaussianBlur(tmpImg, tmpImg, Size(), 1.2, 0, BORDER_REPLICATE);
-	cvtColor(tmpImg, LABImg, COLOR_RGB2Lab);
+
+//	cvtColor(tmpImg, tmpImg, COLOR_BGR2YCrCb);
+//	Mat channels[3];
+//	split(tmpImg, channels);
+//	equalizeHist(channels[0], channels[0]);
+//	merge(channels, 3, tmpImg);
+//	cvtColor(tmpImg, tmpImg, COLOR_YCrCb2BGR);
+//	imshow("equa", tmpImg);
+
+	cvtColor(tmpImg, LABImg, COLOR_BGR2Lab);
 
 }
 
@@ -258,7 +261,7 @@ void writeRegionImageRepresent( const int regionCount, const Mat &pixelRegion, c
 			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = regionColor[idx];
 		}
 	}
-	cvtColor(regionImg, regionImg, COLOR_Lab2RGB);
+	cvtColor(regionImg, regionImg, COLOR_Lab2BGR);
 
 	if (showFlag) imshow(imgName, regionImg);
 	if (writeFlag) imwrite(imgName, regionImg);

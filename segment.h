@@ -196,7 +196,7 @@ void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg)
 	Mat regionDist;
 	getRegionDist(regionDist, pixelRegion, regionCount);
 
-	double sigma_width = 0.4;
+	double sigma_width = 0.2;
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
 			double d = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
@@ -215,7 +215,7 @@ void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg)
 
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			double size = regionElementCount[i] + regionElementCount[j];
+			long long size = (long long)regionElementCount[i] * regionElementCount[j];
 			W.ptr<double>(i)[j] *= size;
 		}
 	}
@@ -228,6 +228,8 @@ void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg)
 			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
 		}
 	}
+
+	normalize(W, W, 0, 1, CV_MINMAX);
 }
 
 #endif // SEGMENT_H

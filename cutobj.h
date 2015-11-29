@@ -81,7 +81,7 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &saliencyMap) {
 	setBGBorder(mask, border);
 	Mat bgdModel, fgdModel;
 	Mat _saliencyMap;
-	cvtColor(saliencyMap, _saliencyMap, COLOR_GRAY2RGB);
+	cvtColor(saliencyMap, _saliencyMap, COLOR_GRAY2BGR);
 	grabCut(_saliencyMap, mask, rect, bgdModel, fgdModel, 2, GC_INIT_WITH_MASK);
 
 	int ITER_COUNT = 4;

@@ -103,7 +103,7 @@ void getEvaluateResult_MSRA(vector<double> &precision, vector<double> &recall, c
 	Rect minRect = boundingRect(pts);
 
 	Mat cmpMap;
-	cvtColor(saliencyMap, cmpMap, CV_GRAY2RGB);
+	cvtColor(saliencyMap, cmpMap, CV_GRAY2BGR);
 	rectangle(cmpMap, groundtruth, Scalar(255, 0, 0));
 	rectangle(cmpMap, minRect, Scalar(0, 0, 255));
 
@@ -142,7 +142,7 @@ void getUserData_1000(map<string,Mat> &binaryMask, const char *dirName) {
 	}
 }
 
-void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
+bool getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
@@ -161,14 +161,17 @@ void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, con
 	precision += tmp_precision;
 	recall += tmp_recall;
 
+	if (tmp_precision < 0.9) {
+		cout << tmp_precision << " " << tmp_recall << endl;
+		return false;
+	}
+	return true;
+
 }
 
 void getEvaluateObj_1000(vector<double> &precision, vector<double> &recall,
-							const Mat &saliencyMap, map<string,Mat> &binaryMask,
-							const char *imgName) {
+						 const Mat &saliencyMap, const Mat &mask) {
 
-	string str(imgName);
-	Mat mask = binaryMask[str.substr(0, str.length()-4)];
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
@@ -180,6 +183,95 @@ void getEvaluateObj_1000(vector<double> &precision, vector<double> &recall,
 	recall.push_back(tmp_recall);
 
 	cout << "current " << precision.back() << " " << recall.back();
+
+}
+
+void compMaskOthers() {
+
+	FILE *recall_precision_File = fopen("logs/recall_precision.txt", "w");
+
+	int testNum = 0;
+
+	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 500) {
+
+		printf("%d\t%d", testNum, PARAM1);
+		cout << endl;
+
+		char dirName[100] = "Saliency";
+
+		char fileNameFormat[100];
+		memset(fileNameFormat, 0, sizeof(fileNameFormat));
+		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
+		strcat(fileNameFormat, "/%s");
+
+		map<string, Mat> binaryMask;
+		getUserData_1000(binaryMask, "test/binarymask");
+
+		DIR *testDir = opendir(dirName);
+		dirent *testFile;
+
+		map<string, double> precision, recall;
+		map<string, int> methodCount;
+
+		int c = 0;
+
+		while ((testFile = readdir(testDir)) != NULL) {
+
+			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
+			string str(testFile->d_name);
+			if (str.find(".jpg") != string::npos) continue;
+			int methodStr_st = str.find_last_of('_');
+			int methodStr_ed = str.find_last_of('.');
+			string methodStr = str.substr(methodStr_st + 1, methodStr_ed-methodStr_st-1);
+			string imgId = str.substr(0, methodStr_st);
+
+			if (methodStr != "CHO") continue;
+
+			if (methodCount.find(methodStr) == methodCount.end()) {
+				methodCount[methodStr] = 1;
+				precision[methodStr] = 0;
+				recall[methodStr] = 0;
+			} else {
+				methodCount[methodStr]++;
+			}
+
+			c++;
+			//cout << c << " " << testFile->d_name << endl;
+
+			char inputImgName[100];
+			sprintf(inputImgName, fileNameFormat, testFile->d_name);
+
+			Mat inputImg = imread(inputImgName, 0);
+			Mat saliencyMap;
+			if (methodStr == "MIX" || methodStr == "CHO") {
+				saliencyMap = inputImg;
+			} else {
+				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
+			}
+			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
+
+			bool flag = getEvaluateMap_1000(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
+			if (flag == false) {
+				cout << imgId << endl;
+			}
+
+		}
+
+		map<string,double>::iterator it;
+		for (it = precision.begin(); it != precision.end(); it++) {
+
+			string methodStr = it->first;
+			double tmp_precision = precision[methodStr] / methodCount[methodStr];
+			double tmp_recall = recall[methodStr] / methodCount[methodStr];
+
+			fprintf(recall_precision_File, "%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
+
+			cout << methodStr << endl;
+
+		}
+		fprintf(recall_precision_File, "\n");
+	}
+	fclose(recall_precision_File);
 
 }
 
