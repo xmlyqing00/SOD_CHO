@@ -1,9 +1,8 @@
 #ifndef COMMAN_H
 #define COMMAN_H
 
-//#define LOG
 //#define SHOW_IMAGE
-#define POS_NEG_RESULT_OUTPUT
+//#define POS_NEG_RESULT_OUTPUT
 //#define EVALUATE_MASK
 
 #include <stdlib.h>
@@ -39,10 +38,12 @@ const int PYRAMID_SIZE = 5;
 const int CROP_WIDTH = 8;
 const int MIN_REGION_SIZE = 200; // 200
 const int SEGMENT_THRESHOLD = 50; // 80
-const int BORDER_WIDTH = 8;
+const int BORDER_WIDTH = 4;
 const double BORDER_REGION = 0.1;
 const int QUANTIZE_LEVEL = 5;
 const int SALIENCY_THRESHOLD = 70;
+const int HIGH_SALIENCY_THRESHOLD = 250;
+const double alpha0 = 0.3;
 
 #define INF 2000000000
 

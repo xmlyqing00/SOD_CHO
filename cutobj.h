@@ -4,119 +4,132 @@
 #include "comman.h"
 #include "type_que.h"
 
-void setBGBorder(Mat &mask, const int border) {
-
-	Size imgSize = mask.size();
-	(mask(Rect(0, 0, imgSize.width, border))).setTo(Scalar(GC_BGD));
-	(mask(Rect(0, imgSize.height-border, imgSize.width, border))).setTo(Scalar(GC_BGD));
-	(mask(Rect(0, 0, border, imgSize.height))).setTo(Scalar(GC_BGD));
-	(mask(Rect(imgSize.width-border, 0, border, imgSize.height))).setTo(Scalar(GC_BGD));
-}
-
-void getSaliencyObj(Mat &saliencyObj, const Mat &saliencyMap) {
+void getMainRegionMask(Mat &regionMask, const Mat &saliencyMap) {
 
 	Size imgSize = saliencyMap.size();
-
-	Mat mask(imgSize, CV_8UC1, Scalar(GC_PR_BGD));
-	mask.setTo(GC_BGD, 255 - saliencyMap);
-
 	TypeQue<Point> &que = *(new TypeQue<Point>);
-	Mat visited(imgSize, CV_8UC1, Scalar(0));
-	vector< vector<Point> > candidateClusters;
-	vector<long long> candidateSaliency;
+	Mat pixelRegion(imgSize, CV_32SC1, Scalar(-1));
+	int regionCount = 0;
+	vector<long long> regionSaliency;
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 
-			if (saliencyMap.ptr<uchar>(y)[x] <= SALIENCY_THRESHOLD) continue;
-			if (visited.ptr<uchar>(y)[x] == 1) continue;
+			if (saliencyMap.ptr<uchar>(y)[x] == 0) continue;
+			if (pixelRegion.ptr<int>(y)[x] > -1) continue;
 
-			vector<Point> candidateCluster;
 			que.push(Point(x,y));
-			visited.ptr<uchar>(y)[x] = 1;
+			pixelRegion.ptr<int>(y)[x] = regionCount;
 			long long saliencyValue = 0;
 
 			while (!que.empty()) {
 
 				Point nowP = que.front();
 				que.pop();
-				candidateCluster.push_back(nowP);
 				saliencyValue += saliencyMap.at<uchar>(nowP);
 
 				for (int k = 0; k < PIXEL_CONNECT; k++) {
 
 					Point newP = nowP + dxdy[k];
 					if (isOutside(newP.x, newP.y, imgSize.width, imgSize.height)) continue;
-					if (saliencyMap.at<uchar>(newP) <= SALIENCY_THRESHOLD) continue;
-					if (visited.at<uchar>(newP) == 1) continue;
+					if (saliencyMap.at<uchar>(newP) == 0) continue;
+					if (pixelRegion.at<int>(newP) > -1) continue;
 
-					visited.at<uchar>(newP) = 1;
+					pixelRegion.at<int>(newP) = regionCount;
 					que.push(newP);
 				}
 			}
 
-			candidateClusters.push_back(candidateCluster);
-			candidateSaliency.push_back(saliencyValue);
+			regionCount++;
+			regionSaliency.push_back(saliencyValue);
 
 		}
 	}
+
+	delete &que;
 
 	long long max_saliency = 0;
-	int regionsIdx = 0;
-	for (size_t i = 0; i < candidateClusters.size(); i++) {
-		if (max_saliency < candidateSaliency[i]) {
-			max_saliency = candidateSaliency[i];
-			regionsIdx = i;
+	int regionIdx = 0;
+	for (size_t i = 0; i < regionSaliency.size(); i++) {
+		if (max_saliency < regionSaliency[i]) {
+			max_saliency = regionSaliency[i];
+			regionIdx = i;
 		}
 	}
 
+	compare(pixelRegion, regionIdx, regionMask, CMP_EQ);
+	regionMask.convertTo(regionMask, CV_8UC1);
 
+}
 
-	for (size_t i = 0; i < candidateClusters[regionsIdx].size(); i++) {
-		mask.at<uchar>(candidateClusters[regionsIdx][i]) = GC_PR_FGD;
+void getMainRegionRect(Rect &rect, const Mat &regionMask) {
+
+	Size imgSize = regionMask.size();
+	int min_x = INF, min_y = INF;
+	int max_x = 0, max_y = 0;
+
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			if (regionMask.ptr<uchar>(y)[x] == 255) {
+				min_x = min(min_x, x);
+				max_x = max(max_x, x);
+				min_y = min(min_y, y);
+				max_y = max(max_y, y);
+			}
+		}
 	}
 
-	int border = 15;
-	Rect rect(border, border, imgSize.width-2*border, imgSize.height-2*border);
-	setBGBorder(mask, border);
+	int ext = 20;
+	max_x = max_x + ext + 1 < imgSize.width ? max_x + ext + 1: imgSize.width;
+	max_y = max_y + ext + 1 < imgSize.height ? max_y + ext + 1: imgSize.height;
+	min_x = min_x - ext > 0 ? min_x - ext : 0;
+	min_y = min_y - ext > 0 ? min_y - ext : 0;
+
+	rect = Rect(min_x, min_y, max_x - min_x, max_y - min_y);
+
+}
+
+void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg, const int thres0) {
+
+	Size imgSize = _saliencyMap.size();
+
+	Mat borderMap(imgSize, CV_8UC1, Scalar(255));
+	borderMap(Rect(BORDER_WIDTH,BORDER_WIDTH,imgSize.width-BORDER_WIDTH,imgSize.height-BORDER_WIDTH)).setTo(0);
+
+	Mat saliencyMap = _saliencyMap.clone();
+	saliencyMap.setTo(0, borderMap);
+	threshold(saliencyMap, saliencyMap, thres0, 255, THRESH_TOZERO);
+
+	Mat regionMask;
+	getMainRegionMask(regionMask, saliencyMap);
+
+	Rect regionRect;
+	getMainRegionRect(regionRect, regionMask);
+	saliencyMap = saliencyMap(regionRect);
+	borderMap = borderMap(regionRect);
+	regionMask = regionMask(regionRect);
+
+	Mat colorImg = LABImg(regionRect).clone();
+	cvtColor(colorImg, colorImg, COLOR_Lab2BGR);
+	colorImg.convertTo(colorImg, CV_8UC3, 255);
+
+	Mat GCmask(saliencyMap.size(), CV_8UC1, GC_PR_BGD);
+	Mat tmpMask;
+	threshold(saliencyMap, tmpMask, thres0, 255, THRESH_BINARY);
+	GCmask.setTo(GC_PR_FGD, tmpMask);
+	threshold(saliencyMap, tmpMask, HIGH_SALIENCY_THRESHOLD, 255, THRESH_BINARY);
+	GCmask.setTo(GC_FGD, tmpMask);
+
 	Mat bgdModel, fgdModel;
-	Mat _saliencyMap;
-	cvtColor(saliencyMap, _saliencyMap, COLOR_GRAY2BGR);
-	grabCut(_saliencyMap, mask, rect, bgdModel, fgdModel, 2, GC_INIT_WITH_MASK);
+	grabCut(colorImg, GCmask, Rect(), bgdModel, fgdModel, 4, GC_INIT_WITH_MASK);
 
-	int ITER_COUNT = 4;
-	while (ITER_COUNT--) {
-
-		Mat binMask, tmpMat;
-
-		//compare(mask, GC_FGD, binMask, CMP_EQ);
-		//mask.setTo(GC_PR_FGD, binMask);
-		compare(mask, GC_PR_FGD, binMask, CMP_EQ);
-		erode(binMask, tmpMat, Mat(), Point(-1, -1), 5);
-		mask.setTo(GC_PR_FGD, binMask);
-		mask.setTo(GC_FGD, tmpMat);
-
-		//imshow("bin", binMask);
-		//imshow("dilate", tmpMat);
-		//waitKey(0);
-
-		compare(mask, GC_BGD, binMask, CMP_EQ);
-		erode(binMask, tmpMat, Mat(), Point(-1, -1), 5);
-		mask.setTo(GC_PR_BGD, binMask);
-		mask.setTo(GC_BGD, tmpMat);
-
-//		imshow("bin", binMask);
-//		imshow("dilate", tmpMat);
-//		waitKey(0);
-
-		setBGBorder(mask, border);
-		grabCut(_saliencyMap, mask, rect, bgdModel, fgdModel, 1, GC_INIT_WITH_MASK);
-
-	}
+	GCmask = GCmask & 1;
+	compare(GCmask, 1, GCmask, CMP_EQ);
 	saliencyObj = Mat(imgSize, CV_8UC1, Scalar(0));
-	saliencyObj.setTo(Scalar(255), mask & 1);
+	GCmask.copyTo(saliencyObj(regionRect));
 
 #ifdef SHOW_IMAGE
+	imshow("Salient_Region.png", saliencyObj);
 	imwrite("Salient_Region.png", saliencyObj);
 #endif
 }

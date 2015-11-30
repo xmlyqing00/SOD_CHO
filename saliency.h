@@ -658,7 +658,7 @@ void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regi
 }
 
 void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion,
-					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg, const double alpha) {
+					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg, double alpha) {
 
 	vector<double> regionSaliency;
 	getBaseSaliencyMap(regionSaliency, regionCount, pyramidRegion);
@@ -674,7 +674,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #ifdef SHOW_IMAGE
 	imshow("contrast", contrastMap);
 #endif
-	saliencyMap = 0.5 * saliencyMap + 0.5 * contrastMap;
+	saliencyMap = alpha * saliencyMap + (1-alpha) * contrastMap;
 	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 	Mat saliencyMap0 = saliencyMap.clone();
 #ifdef SHOW_IMAGE
@@ -694,7 +694,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #ifdef SHOW_IMAGE
 	imshow("S_color", saliencyMap);
 #endif
-	saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap0;
+	saliencyMap = alpha * saliencyMap + (1-alpha) * saliencyMap0;
 	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);

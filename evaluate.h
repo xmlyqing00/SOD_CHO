@@ -142,7 +142,7 @@ void getUserData_1000(map<string,Mat> &binaryMask, const char *dirName) {
 	}
 }
 
-bool getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
+void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
@@ -160,12 +160,6 @@ bool getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, con
 
 	precision += tmp_precision;
 	recall += tmp_recall;
-
-	if (tmp_precision < 0.9) {
-		cout << tmp_precision << " " << tmp_recall << endl;
-		return false;
-	}
-	return true;
 
 }
 
@@ -186,7 +180,7 @@ void compMaskOthers() {
 
 	int testNum = 0;
 
-	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 500) {
+	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 5) {
 
 		printf("%d\t%d", testNum, PARAM1);
 		cout << endl;
@@ -237,17 +231,14 @@ void compMaskOthers() {
 
 			Mat inputImg = imread(inputImgName, 0);
 			Mat saliencyMap;
-			if (methodStr == "MIX" || methodStr == "CHO") {
+			if (methodStr == "CHO") {
 				saliencyMap = inputImg;
 			} else {
 				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 			}
 			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
-			bool flag = getEvaluateMap_1000(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
-			if (flag == false) {
-				cout << imgId << endl;
-			}
+			getEvaluateMap_1000(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
 
 		}
 
