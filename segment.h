@@ -12,65 +12,7 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
-void getRegionColor(vector<Vec3b> &regionColor, const int regionCount, const Mat &pixelRegion, const Mat &img) {
-
-	Vec3i *_regionColor = new Vec3i[regionCount];
-	int *regionSize = new int[regionCount];
-	for (int i = 0; i < regionCount; i++) {
-		_regionColor[i] =  Vec3i(0, 0, 0);
-		regionSize[i] = 0;
-	}
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionSize[regionIdx]++;
-			_regionColor[regionIdx] += img.ptr<Vec3b>(y)[x];
-		}
-	}
-
-	regionColor = vector<Vec3b>(regionCount);
-
-	for (int i = 0; i < regionCount; i++) {
-		regionColor[i] = _regionColor[i] / regionSize[i];
-	}
-
-	delete[] regionSize;
-	delete[] _regionColor;
-
-}
-
-void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount) {
-
-	vector<Point2d> regionCenter(regionCount, Point(0, 0));
-	vector<int> regionSize(regionCount, 0);
-
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionCenter[regionIdx] += Point2d(x,y);
-			regionSize[regionIdx]++;
-		}
-	}
-
-	int width = pixelRegion.cols;
-	int height = pixelRegion.rows;
-	for (int i = 0; i < regionCount; i++) {
-		regionCenter[i].x /= width * regionSize[i];
-		regionCenter[i].y /= height * regionSize[i];
-	}
-
-	regionDist = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
-	for (int i = 0; i < regionCount; i++) {
-		for (int j = i + 1; j < regionCount; j++) {
-			regionDist.ptr<double>(i)[j] = sqr(regionCenter[i].x-regionCenter[j].x) + sqr(regionCenter[i].y-regionCenter[j].y);
-			regionDist.ptr<double>(j)[i] = regionDist.ptr<double>(i)[j];
-		}
-	}
-}
-
-void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionColor, const Mat &LABImg) {
+void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3f> &regionColor, const Mat &LABImg) {
 
 	vector<TypeEdge> edges;
 	Size imgSize = LABImg.size();
@@ -87,9 +29,9 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 				Point newP = nowP + dxdy[leftside[k]];
 				if (isOutside(newP.x, newP.y, imgSize.width, imgSize.height)) continue;
 
-				Vec3b nowColor = LABImg.ptr<Vec3b>(nowP.y)[nowP.x];
-				Vec3b newColor = LABImg.ptr<Vec3b>(newP.y)[newP.x];
-				int diff = colorDiff(nowColor, newColor);
+				Vec3f nowColor = LABImg.ptr<Vec3f>(nowP.y)[nowP.x];
+				Vec3f newColor = LABImg.ptr<Vec3f>(newP.y)[newP.x];
+				double diff = colorDiff(nowColor, newColor);
 				edges.push_back(TypeEdge(nowP, newP, diff));
 			}
 		}
@@ -100,7 +42,7 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 	int pixelCount = imgSize.height * imgSize.width;
 	int *regionHead = new int[pixelCount];
 	int *regionSize = new int[pixelCount];
-	float *minIntDiff = new float[pixelCount];
+	double *minIntDiff = new double[pixelCount];
 	for (int i = 0; i < pixelCount; i++) {
 		regionHead[i] = i;
 		regionSize[i] = 1;
@@ -166,10 +108,11 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 	// get region represent color
 	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
-	//cout << regionCount << endl;
+	cout << regionCount << endl;
 
 #ifdef SHOW_IMAGE
 	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png", 1, 1);
+	writeRegionImageRepresent(pixelRegion, regionColor, "Segment_Image_Color.png", 1, 1);
 #endif
 
 }
@@ -177,32 +120,11 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3b> &regionC
 void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg) {
 
 	regionCount = 0;
-	vector<Vec3b> regionColor;
+	vector<Vec3f> regionColor;
 
 	overSegmentation(pixelRegion, regionCount, regionColor, LABImg);
 
 	W = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
-
-	// init W
-	int sigma_color = 8;
-	for (int i = 0; i < regionCount; i++) {
-		for (int j = i + 1; j < regionCount; j++) {
-			double w = exp(-(double)colorDiff(regionColor[i], regionColor[j]) / sigma_color);
-			W.ptr<double>(i)[j] = w;
-		}
-	}
-
-	// update W with dist
-	Mat regionDist;
-	getRegionDist(regionDist, pixelRegion, regionCount);
-
-	double sigma_width = 0.2;
-	for (int i = 0; i < regionCount; i++) {
-		for (int j = i + 1; j < regionCount; j++) {
-			double d = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
-			W.ptr<double>(i)[j] *= d;
-		}
-	}
 
 	// update W with size
 	int *regionElementCount = new int[regionCount];
@@ -215,21 +137,41 @@ void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg)
 
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			long long size = (long long)regionElementCount[i] * regionElementCount[j];
-			W.ptr<double>(i)[j] *= size;
+			double size = regionElementCount[i] * regionElementCount[j];
+			W.ptr<double>(i)[j] = size;
 		}
 	}
 	delete[] regionElementCount;
 	delete[] regionElement;
 
-	// symmetric
+	// update W with color
+	double sigma_color = 8;
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
+			double w = exp(-(double)colorDiff(regionColor[i], regionColor[j]) / sigma_color);
+			W.ptr<double>(i)[j] *= w;
 		}
 	}
 
-	normalize(W, W, 0, 1, CV_MINMAX);
+	// update W with dist
+	Mat regionDist;
+	getRegionDist(regionDist, pixelRegion, regionCount);
+
+	double sigma_width = 0.4;
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			double d = exp(-regionDist.ptr<double>(i)[j] / sigma_width);
+			W.ptr<double>(i)[j] *= d;
+		}
+	}
+
+	// symmetric
+	for (int i = 0; i < regionCount; i++) {
+		for (int j = i + 1; j < regionCount; j++) {
+			if (W.ptr<double>(i)[j] < FLOAT_EPS) W.ptr<double>(i)[j] = 0;
+			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
+		}
+	}
 }
 
 #endif // SEGMENT_H

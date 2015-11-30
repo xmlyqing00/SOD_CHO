@@ -169,20 +169,14 @@ bool getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, con
 
 }
 
-void getEvaluateObj_1000(vector<double> &precision, vector<double> &recall,
-						 const Mat &saliencyMap, const Mat &mask) {
+void getEvaluateObj_1000(double &precision, double &recall, const Mat &saliencyMap, const Mat &mask) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
 
-	double tmp_precision = (double)(area_intersection) / area_saliency;
-	double tmp_recall = (double)(area_intersection) / area_mask;
-
-	precision.push_back(tmp_precision);
-	recall.push_back(tmp_recall);
-
-	cout << "current " << precision.back() << " " << recall.back();
+	precision = (double)(area_intersection) / area_saliency;
+	recall = (double)(area_intersection) / area_mask;
 
 }
 

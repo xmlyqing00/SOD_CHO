@@ -159,14 +159,14 @@ void getBaseSaliencyMap(vector<double> &regionSaliency, const vector<int> &regio
 	normalizeVecd(regionSaliency);
 }
 
-void updateMixContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
+void updateMixContrast(Mat &contrastMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
 
-	vector<Vec3b> regionColor;
+	vector<Vec3f> regionColor;
 	const double sigma_color = 1;
 	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
 	Mat regionDist;
-	const double sigma_width = 0.4;
+	const double sigma_width = 0.65;
 	getRegionDist(regionDist, pixelRegion, regionCount);
 
 	int *regionElementCount = new int[regionCount];
@@ -205,35 +205,24 @@ void updateMixContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regio
 
 	normalizeVecd(regionContrast);
 
-	Mat _saliencyMap(imgSize, CV_64FC1, Scalar(0));
+	contrastMap = Mat(imgSize, CV_8UC1);
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			_saliencyMap.ptr<double>(y)[x] = (double)saliencyMap.ptr<uchar>(y)[x] / 255.0 + 3 * regionContrast[regionIdx];
-			//_saliencyMap.ptr<double>(y)[x] = regionContrast[regionIdx];
-		}
-	}
-
-	imshow("contrast", _saliencyMap);
-
-	normalize(_saliencyMap, _saliencyMap, 0, 255, CV_MINMAX);
-
-	for (int y = 0; y < imgSize.height; y++) {
-		for (int x = 0; x < imgSize.width; x++) {
-			saliencyMap.ptr<uchar>(y)[x] = _saliencyMap.ptr<double>(y)[x];
+			contrastMap.ptr<uchar>(y)[x] = regionContrast[regionIdx] * 255;
 		}
 	}
 
 }
 
-void updateRegionContrast(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
+void updateRegionContrast(Mat &contrastMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg) {
 
-	vector<Vec3b> regionColor;
+	vector<Vec3f> regionColor;
 	const double sigma_color = 1;
 	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
 	Mat regionDist;
-	const double sigma_width = 0.4;
+	const double sigma_width = 0.65;
 	getRegionDist(regionDist, pixelRegion, regionCount);
 
 	int *regionElementCount = new int[regionCount];
@@ -241,6 +230,7 @@ void updateRegionContrast(Mat &saliencyMap, const Mat &pixelRegion, const int re
 	memset(regionElementCount, 0, sizeof(int)*regionCount);
 	getRegionElement(regionElement, regionElementCount, pixelRegion);
 
+	Size imgSize = pixelRegion.size();
 	vector<double> colorContrast(regionCount, 0);
 
 	for (int i = 0; i < regionCount; i++) {
@@ -255,26 +245,17 @@ void updateRegionContrast(Mat &saliencyMap, const Mat &pixelRegion, const int re
 
 			colorContrast[i] += size * dist * color;
 
-			cout << size << " " << dist << " " << color << " " << size * dist * color << endl;
+			//cout << size << " " << dist << " " << color << " " << size * dist * color << endl;
 		}
 	}
 
 	normalizeVecd(colorContrast);
 
-	Size imgSize = saliencyMap.size();
-	Mat _saliencyMap(imgSize, CV_64FC1);
+	contrastMap = Mat(imgSize, CV_8UC1);
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			_saliencyMap.ptr<double>(y)[x] = (double)saliencyMap.ptr<uchar>(y)[x] / 255 + 3 * colorContrast[regionIdx];
-		}
-	}
-
-	normalize(_saliencyMap, _saliencyMap, 0, 1, CV_MINMAX);
-
-	for (int y = 0; y < imgSize.height; y++) {
-		for (int x = 0; x < imgSize.width; x++) {
-			saliencyMap.ptr<uchar>(y)[x] = _saliencyMap.ptr<double>(y)[x] * 255;
+			contrastMap.ptr<uchar>(y)[x] = colorContrast[regionIdx] * 255;
 		}
 	}
 }
@@ -391,6 +372,7 @@ void updateborderMap2(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, 
 	vector<double> regionVar_Y(regionCount, 0);
 	vector<Point2i> regionMeanPos(regionCount, Point2i(0,0));
 	vector<int> regionSize(regionCount, 0);
+	vector<int> regionSaliency(regionCount, 0);
 
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
@@ -398,12 +380,14 @@ void updateborderMap2(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, 
 			int regionIdx = pixelRegion.ptr<int>(y)[x];
 			regionMeanPos[regionIdx] += Point2i(x,y);
 			regionSize[regionIdx]++;
+			regionSaliency[regionIdx] += saliencyMap.ptr<uchar>(y)[x];
 		}
 	}
 
 	for (int i = 0; i < regionCount; i++) {
 		regionMeanPos[i].x /= regionSize[i];
 		regionMeanPos[i].y /= regionSize[i];
+		regionSaliency[i] /= regionSize[i];
 	}
 
 	for (int y = 0; y < imgSize.height; y++) {
@@ -439,6 +423,7 @@ void updateborderMap2(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, 
 
 	vector<bool> regionBorder(regionCount, false);
 	for (int i = 0; i < regionCount; i++) {
+		if (regionSaliency[i] > 180) continue;
 		double lk = regionBorderNum_X[i] / (4*CROP_WIDTH*regionVar_Y[i]) + regionBorderNum_Y[i] / (4*CROP_WIDTH*regionVar_X[i]);
 		regionBorder[i] = lk > 0.4 ? true : false;
 	}
@@ -461,13 +446,13 @@ void updateborderMap2(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, 
 
 }
 
-void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &colorImg) {
+void quantizeColorSpace(Mat &colorMap, vector<Vec3f> &platte, const Mat &colorImg) {
 
 	Size imgSize = colorImg.size();
 	vector<TypeColorSpace> colorSet;
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
-			colorSet.push_back(TypeColorSpace(Point(x,y), colorImg.ptr<Vec3b>(y)[x]));
+			colorSet.push_back(TypeColorSpace(Point(x,y), colorImg.ptr<Vec3f>(y)[x]));
 		}
 	}
 
@@ -480,8 +465,8 @@ void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &colorIm
 
 		for (size_t i = 0; i < medianCutQue.size(); i++) {
 
-			Vec3b minColor(255, 255, 255);
-			Vec3b maxColor(0, 0, 0);
+			Vec3f minColor(255, 255, 255);
+			Vec3f maxColor(0, 0, 0);
 			for (size_t j = 0; j < medianCutQue[i].size(); j++) {
 				for (int k = 0; k < 3; k++) {
 					minColor.val[k] = min(minColor.val[k], medianCutQue[i][j].color[k]);
@@ -490,7 +475,7 @@ void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &colorIm
 			}
 
 			int cut_dimension = 0;
-			int max_range = 0;
+			double max_range = 0;
 			for (int k = 0; k < 3; k++) {
 				if (maxColor.val[k] - minColor.val[k] > max_range) {
 					max_range = maxColor.val[k] - minColor.val[k];
@@ -526,7 +511,7 @@ void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &colorIm
 
 	for (size_t i = 0; i < medianCutQue.size(); i++) {
 
-		Vec3b meanColor = Vec3b(medianCutQue[i][medianCutQue[i].size()>>1].color);
+		Vec3f meanColor = Vec3f(medianCutQue[i][medianCutQue[i].size()>>1].color);
 		platte.push_back(meanColor);
 	}
 
@@ -535,15 +520,15 @@ void quantizeColorSpace(Mat &colorMap, vector<Vec3b> &platte, const Mat &colorIm
 
 		for (size_t j = 0; j < medianCutQue[i].size(); j++) {
 
-			Vec3b c = Vec3b(medianCutQue[i][j].color);
+			Vec3f c = Vec3f(medianCutQue[i][j].color);
 
 			size_t best_fit = i;
-			int min_diff = INF;
+			double min_diff = INF;
 			for (int k = 0; k < range; k++) {
 
 				int tmpIdx = i + k;
 				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
-				int tmp = colorDiff(c, platte[tmpIdx]);
+				double tmp = colorDiff(c, platte[tmpIdx]);
 				if (tmp < min_diff) {
 					min_diff = tmp;
 					best_fit = tmpIdx;
@@ -568,10 +553,10 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 
 	Size imgSize = saliencyMap.size();
 	Mat colorMap(imgSize, CV_8UC1);
-	vector<Vec3b> platte;
-	Mat BGRImg;
-	cvtColor(LABImg, BGRImg, COLOR_Lab2BGR);
-	quantizeColorSpace(colorMap, platte, BGRImg);
+	vector<Vec3f> platte;
+	//Mat BGRImg;
+	//cvtColor(LABImg, BGRImg, COLOR_Lab2BGR);
+	quantizeColorSpace(colorMap, platte, LABImg);
 
 	vector<int> colorCount(platte.size(), 0);
 	vector<int> colorSaliency(platte.size(), 0);
@@ -591,10 +576,10 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 	vector<double> _colorSaliency(platte.size(), 0);
 	for (size_t i = 0; i < platte.size(); i++) {
 
-		double sigma_color = 8;
+		double sigma_color = 1;
 		vector< pair<int, double> > similarColor;
 		for (size_t j = 0; j < platte.size(); j++) {
-			double diff = exp(-(double)colorDiff(platte[i],platte[j]) / sigma_color);
+			double diff = exp(-colorDiff(platte[i],platte[j]) / sigma_color);
 			//cout << colorDiff(platte[i],platte[j]) << " " << diff << endl;
 			//double diff = -colorDiff(platte[i],platte[j]) / 3;
 			similarColor.push_back(make_pair(j,diff));
@@ -630,12 +615,13 @@ void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg) {
 	}
 
 #ifdef SHOW_IMAGE
-	Mat quantizeImg(imgSize, CV_8UC3);
+	Mat quantizeImg(imgSize, CV_32FC3);
 	for (int y = 0; y < imgSize.height; y++) {
 		for (int x = 0; x < imgSize.width; x++) {
-			quantizeImg.ptr<Vec3b>(y)[x] = platte[colorMap.ptr<uchar>(y)[x]];
+			quantizeImg.ptr<Vec3f>(y)[x] = platte[colorMap.ptr<uchar>(y)[x]];
 		}
 	}
+	cvtColor(quantizeImg, quantizeImg, COLOR_Lab2BGR);
 	imshow("Quantize_Image.png", quantizeImg);
 	imwrite("Quantize_Image.png", quantizeImg);
 #endif
@@ -672,7 +658,7 @@ void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regi
 }
 
 void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion,
-					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg) {
+					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg, const double alpha) {
 
 	vector<double> regionSaliency;
 	getBaseSaliencyMap(regionSaliency, regionCount, pyramidRegion);
@@ -682,14 +668,19 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #ifdef SHOW_IMAGE
 	imshow("base", saliencyMap);
 #endif
-
-	//updateMixContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
-
-	updateRegionContrast(saliencyMap, over_pixelRegion, over_regionCount, LABImg);
+	Mat contrastMap;
+	updateMixContrast(contrastMap, over_pixelRegion, over_regionCount, LABImg);
+	//updateRegionContrast(contrastMap, over_pixelRegion, over_regionCount, LABImg);
 #ifdef SHOW_IMAGE
-	imshow("contrast", saliencyMap);
+	imshow("contrast", contrastMap);
 #endif
-	updateCenterBias(saliencyMap, over_pixelRegion, over_regionCount);
+	saliencyMap = 0.5 * saliencyMap + 0.5 * contrastMap;
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	Mat saliencyMap0 = saliencyMap.clone();
+#ifdef SHOW_IMAGE
+	imshow("combine", saliencyMap);
+#endif
+	//updateCenterBias(saliencyMap, over_pixelRegion, over_regionCount);
 #ifdef SHOW_IMAGE
 	imshow("center", saliencyMap);
 #endif
@@ -703,11 +694,15 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #ifdef SHOW_IMAGE
 	imshow("S_color", saliencyMap);
 #endif
+	saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap0;
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+
 	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);
+	//updateRegionSmooth(saliencyMap, pyramidRegion.back(), regionCount.back());
 #ifdef SHOW_IMAGE
 	imshow("S_space", saliencyMap);
 #endif
-	updateborderMap(saliencyMap, borderMap, pyramidRegion.back(), regionCount.back());
+	updateborderMap2(saliencyMap, borderMap, over_pixelRegion, over_regionCount);
 #ifdef SHOW_IMAGE
 	imshow("S_border2", saliencyMap);
 #endif
