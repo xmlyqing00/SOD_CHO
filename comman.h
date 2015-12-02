@@ -291,23 +291,23 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 void writeRegionImageRandom( const int regionCount, const Mat &pixelRegion, const char *imgName,
 							 const int showFlag, const int writeFlag) {
 
-    srand( clock() );
-    Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
-    vector<Vec3b> color;
-    for ( int i = 0; i < regionCount; i++ ) {
+	srand( clock() );
+	Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
+	vector<Vec3b> color;
+	for ( int i = 0; i < regionCount; i++ ) {
 
 		uchar t0 = rand() * 255;
 		uchar t1 = rand() * 255;
 		uchar t2 = rand() * 255;
 		color.push_back( Vec3b( t0, t1, t2 ) );
-    }
+	}
 
-    for ( int y = 0; y < pixelRegion.rows; y++ ) {
+	for ( int y = 0; y < pixelRegion.rows; y++ ) {
 		for ( int x = 0; x < pixelRegion.cols; x++ ) {
 			int idx = pixelRegion.ptr<int>(y)[x];
 			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = color[idx];
 		}
-    }
+	}
 
 	if (showFlag) imshow(imgName, regionImg);
 	if (writeFlag) imwrite(imgName, regionImg);
@@ -330,4 +330,3 @@ void writeRegionImageRepresent(const Mat &pixelRegion, const vector<Vec3f> &regi
 
 
 #endif // COMMAN_H
-

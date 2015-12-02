@@ -20,22 +20,22 @@ int main(int args, char **argv) {
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-//	map<string, Rect> userData;
-//	getUserData_MSRA(userData, argv[1]);
-
 	map<string, Mat> binaryMask;
-	getUserData_1000(binaryMask, "test/binarymask");
+	getUserData_MSRA10K(binaryMask, "test/MSRA10K_GT");
+
+	//map<string, Mat> binaryMask;
+	//getUserData_1000(binaryMask, "test/binarymask");
 
 	DIR *testDir = opendir(dirName);
 	dirent *testFile;
 	int fileNum = 0;
 
-	const int test_num1 = 5;
-	const int test_num2 = 7;
+	const int test_num1 = 1;
+	const int test_num2 = 4;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
-	double PARAM_SET1[test_num1] = {0, 0.25, 0.5, 0.75, 1};
-	int PARAM_SET2[test_num2] = {10, 30, 50, 70, 90, 110, 130};
+	double PARAM_SET1[test_num1] = {0.5};
+	int PARAM_SET2[test_num2] = {60, 70, 80, 90};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
@@ -46,7 +46,7 @@ int main(int args, char **argv) {
 
 		string imgId = string(testFile->d_name);
 		imgId = imgId.substr(0, imgId.length()-4);
-
+		//if (fileNum < 612) continue;
 		char inputImgName[100];
 		sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
@@ -67,21 +67,23 @@ int main(int args, char **argv) {
 			Mat saliencyMap;
 			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg, PARAM_SET1[param1]);
 
+			int len = strlen(testFile->d_name);
+			string str = string(testFile->d_name).substr(0, len-4);
+			str = "Saliency_10K/" + str + "_CHO.png";
+			imwrite(str, saliencyMap);
+
+			continue;
+
 			for (int param2 = 0; param2 < test_num2; param2++) {
 
 				Mat saliencyObj;
 				getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
 				//threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
 
-//				int len = strlen(testFile->d_name);
-//				string str = string(testFile->d_name).substr(0, len-4);
-//				str = "Saliency/" + str + "_CHO.png";
-//				imwrite(str, saliencyMap);
-
 				//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 				double precision, recall;
 				getEvaluateObj_1000(precision, recall, saliencyObj, binaryMask[imgId]);
-				int paramIdx = param1 * 5 + param2;
+				int paramIdx = param1 * test_num2 + param2;
 				precision_param[paramIdx] += precision;
 				recall_param[paramIdx] += recall;
 
@@ -92,30 +94,34 @@ int main(int args, char **argv) {
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
 			Size matSize = LABImg.size();
-			Mat resultMap(matSize.height*2, matSize.width*2, CV_8UC3, Scalar(0));
+			Mat resultMap(matSize.height, matSize.width*4, CV_8UC3, Scalar(0));
 
 			tmpMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 			tmpMap.copyTo(resultMap(Rect(0, 0, matSize.width, matSize.height)));
 
 			cvtColor(binaryMask[imgId], tmpMap, COLOR_GRAY2BGR);
-			tmpMap.copyTo(resultMap(Rect(matSize.width, 0, matSize.width, matSize.height)));
+			//tmpMap.copyTo(resultMap(Rect(matSize.width, 0, matSize.width, matSize.height)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width*3, 0, matSize.width, matSize.height)));
 
 			cvtColor(saliencyMap, tmpMap, COLOR_GRAY2BGR);
-			tmpMap.copyTo(resultMap(Rect(0, matSize.height, matSize.width, matSize.height)));
+			//tmpMap.copyTo(resultMap(Rect(0, matSize.height, matSize.width, matSize.height)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width*1, 0, matSize.width, matSize.height)));
 
 			cvtColor(saliencyObj, tmpMap, COLOR_GRAY2BGR);
-			tmpMap.copyTo(resultMap(Rect(matSize.width, matSize.height, matSize.width, matSize.height)));
+			//tmpMap.copyTo(resultMap(Rect(matSize.width, matSize.height, matSize.width, matSize.height)));
+			tmpMap.copyTo(resultMap(Rect(matSize.width*2, 0, matSize.width, matSize.height)));
 
 			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
 			sprintf(fileName, "test/result/%04d_%04d__%s", (int)(precision*10000), (int)(recall*10000), testFile->d_name);
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
-			if (precision < 0.8 || recall < 0.8) imwrite(fileName, resultMap);
+			if (precision < 0.8)
+				imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
-			if (precision < 0.8  || recall < 0.8) {
+			if (precision < 0.8) {
 				char fileName[100];
 				sprintf(fileName, "test/negative/%s", testFile->d_name);
 				imwrite(fileName, inputImg);
@@ -132,7 +138,7 @@ int main(int args, char **argv) {
 	for (int param1 = 0; param1 < test_num1; param1++) {
 		for (int param2 = 0; param2 < test_num2; param2++) {
 
-			int paramIdx = param1 * test_num1 + param2;
+			int paramIdx = param1 * test_num2 + param2;
 
 			double a = precision_param[paramIdx] / fileNum;
 			double b = recall_param[paramIdx] / fileNum;

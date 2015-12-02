@@ -128,6 +128,10 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg
 	saliencyObj = Mat(imgSize, CV_8UC1, Scalar(0));
 	GCmask.copyTo(saliencyObj(regionRect));
 
+	if (sum(saliencyObj).val[0] == 0) {
+		threshold(_saliencyMap, saliencyObj, 130, 255, THRESH_BINARY);
+	}
+
 #ifdef SHOW_IMAGE
 	imshow("Salient_Region.png", saliencyObj);
 	imwrite("Salient_Region.png", saliencyObj);
