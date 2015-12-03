@@ -96,7 +96,9 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg
 	Mat borderMap(imgSize, CV_8UC1, Scalar(255));
 	borderMap(Rect(BORDER_WIDTH,BORDER_WIDTH,imgSize.width-BORDER_WIDTH,imgSize.height-BORDER_WIDTH)).setTo(0);
 
-	Mat saliencyMap = _saliencyMap.clone();
+	Mat saliencyMap;
+	GaussianBlur(_saliencyMap, saliencyMap, Size(9, 9), 0);
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 	saliencyMap.setTo(0, borderMap);
 	threshold(saliencyMap, saliencyMap, thres0, 255, THRESH_TOZERO);
 

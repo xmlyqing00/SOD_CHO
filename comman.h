@@ -3,7 +3,7 @@
 
 //#define SHOW_IMAGE
 //#define POS_NEG_RESULT_OUTPUT
-//#define EVALUATE_MASK
+#define EVALUATE_MASK
 
 #include <stdlib.h>
 #include <stdio.h>

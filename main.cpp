@@ -8,7 +8,8 @@
 int main(int args, char **argv) {
 
 #ifdef EVALUATE_MASK
-	compMaskOthers();
+	//compMaskOthers_1K();
+	compMaskOthers_10K();
 	return 0;
 #endif
 
@@ -20,11 +21,11 @@ int main(int args, char **argv) {
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	map<string, Mat> binaryMask;
-	getUserData_MSRA10K(binaryMask, "test/MSRA10K_GT");
-
 	//map<string, Mat> binaryMask;
-	//getUserData_1000(binaryMask, "test/binarymask");
+	//getUserData_MSRA10K(binaryMask, "test/MSRA10K_GT");
+
+	map<string, Mat> binaryMask;
+	getGroundTruth(binaryMask, "test/MSRA1K/GT");
 
 	DIR *testDir = opendir(dirName);
 	dirent *testFile;
@@ -69,10 +70,8 @@ int main(int args, char **argv) {
 
 			int len = strlen(testFile->d_name);
 			string str = string(testFile->d_name).substr(0, len-4);
-			str = "Saliency_10K/" + str + "_CHO.png";
+			str = "Saliency_10K2/" + str + "_CHO.png";
 			imwrite(str, saliencyMap);
-
-			continue;
 
 			for (int param2 = 0; param2 < test_num2; param2++) {
 
