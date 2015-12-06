@@ -3,7 +3,7 @@
 
 //#define SHOW_IMAGE
 //#define POS_NEG_RESULT_OUTPUT
-#define EVALUATE_MASK
+//#define EVALUATE_MASK
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -273,6 +273,9 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 	imwrite("Input_Image.jpg", inputImg);
 #endif
 	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
+#ifdef SHOW_IMAGE
+	imwrite("Input_Image_Resize.png", tmpImg);
+#endif
 	GaussianBlur(tmpImg, tmpImg, Size(), 0.5, 0, BORDER_REPLICATE);
 
 //	cvtColor(tmpImg, tmpImg, COLOR_BGR2YCrCb);
@@ -324,9 +327,27 @@ void writeRegionImageRepresent(const Mat &pixelRegion, const vector<Vec3f> &regi
 		}
 	}
 	cvtColor(regionImg, regionImg, COLOR_Lab2BGR);
+	regionImg.convertTo(regionImg, CV_8UC3, 255);
 	if (showFlag) imshow(imgName, regionImg);
 	if (writeFlag) imwrite(imgName, regionImg);
 }
 
+void initTransparentImage(Mat &img) {
+
+	int blockSize = 30;
+	int halfBlockSize = 15;
+	for (int y = 0; y < img.rows; y++) {
+		for (int x = 0; x < img.cols; x++) {
+			int _x = x % blockSize;
+			int _y = y % blockSize;
+			if ((_x < halfBlockSize && _y < halfBlockSize) ||
+				(_x >= halfBlockSize && _y >=halfBlockSize)) {
+				img.ptr<Vec3b>(y)[x] = Vec3b(182, 182, 182);
+			} else {
+				img.ptr<Vec3b>(y)[x] = Vec3b(153, 153, 153);
+			}
+		}
+	}
+}
 
 #endif // COMMAN_H

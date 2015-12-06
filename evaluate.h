@@ -3,35 +3,9 @@
 
 #include "comman.h"
 
-void getUserData_MSRA10K(map<string,Mat> &binaryMask, const char *dirName) {
-
-	binaryMask.clear();
-
-	char fileNameFormat[100];
-	memset(fileNameFormat, 0, sizeof(fileNameFormat));
-	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
-	strcat(fileNameFormat, "/%s");
-
-	DIR *testDir = opendir(dirName);
-	dirent *testFile;
-
-	while ((testFile = readdir(testDir)) != NULL) {
-
-		if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
-
-		char inputImgName[100];
-		sprintf(inputImgName, fileNameFormat, testFile->d_name);
-		Mat maskMat = imread(inputImgName, 0);
-		maskMat = maskMat(Rect(CROP_WIDTH, CROP_WIDTH, maskMat.cols-2*CROP_WIDTH, maskMat.rows-2*CROP_WIDTH));
-		string str(testFile->d_name);
-		str = str.substr(0, str.length()-4);
-		binaryMask[str] = maskMat;
-
-	}
-}
-
 void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName) {
 
+	cout << "Ground Truth Input ..." << endl;
 	binaryMask.clear();
 
 	char fileNameFormat[100];
@@ -58,7 +32,7 @@ void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName) {
 	}
 }
 
-void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
+bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
@@ -77,16 +51,8 @@ void getEvaluateMap_1000(double &precision, double &recall, const Mat &mask, con
 	precision += tmp_precision;
 	recall += tmp_recall;
 
-}
-
-void getEvaluateObj_1000(double &precision, double &recall, const Mat &saliencyMap, const Mat &mask) {
-
-	int area_saliency = sum(saliencyMap).val[0] / 255;
-	int area_mask = sum(mask).val[0] / 255;
-	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
-
-	precision = (double)(area_intersection) / area_saliency;
-	recall = (double)(area_intersection) / area_mask;
+	if (tmp_precision < 0.8) return false;
+		else return true;
 
 }
 
@@ -95,6 +61,9 @@ void compMaskOthers_1K() {
 	FILE *recall_precision_File = fopen("logs/recall_precision.txt", "w");
 
 	int testNum = 0;
+
+	map<string, Mat> binaryMask;
+	getGroundTruth(binaryMask, "test/binarymask");
 
 	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 5) {
 
@@ -108,8 +77,7 @@ void compMaskOthers_1K() {
 		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 		strcat(fileNameFormat, "/%s");
 
-		map<string, Mat> binaryMask;
-		getGroundTruth(binaryMask, "test/binarymask");
+
 
 		DIR *testDir = opendir(dirName);
 		dirent *testFile;
@@ -154,7 +122,7 @@ void compMaskOthers_1K() {
 			}
 			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
-			getEvaluateMap_1000(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
+			evaluateMap(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
 
 		}
 
@@ -186,7 +154,7 @@ void compMaskOthers_10K() {
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, "test/MSRA10K/GT");
 
-	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 5) {
+	for (int PARAM1 = 250; PARAM1 >= 0; PARAM1 -= 5) {
 
 		printf("%d\t%d", testNum, PARAM1);
 		cout << endl;
@@ -242,9 +210,18 @@ void compMaskOthers_10K() {
 			} else {
 				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 			}
-			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
-			getEvaluateMap_1000(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
+			Mat saliencyObj;
+			threshold(saliencyMap, saliencyObj, PARAM1, 255, THRESH_BINARY);
+
+			bool flag = evaluateMap(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyObj);
+//			if (!flag) {
+//				imwrite("test/MSRA10K/result/"+imgId+"_CHO.png", saliencyMap);
+//				imwrite("test/MSRA10K/result/"+imgId+"_GT.bmp", binaryMask[imgId]);
+//				Mat inputImg = imread("test/MSRA10K/input/"+imgId+".jpg");
+//				imwrite("test/MSRA10K/result/"+imgId+"_input.jpg", inputImg);
+//				imwrite("test/MSRA10K/negative/"+imgId+".jpg", inputImg);
+//			}
 
 		}
 

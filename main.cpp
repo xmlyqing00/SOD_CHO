@@ -14,35 +14,32 @@ int main(int args, char **argv) {
 #endif
 
 	char dirName[100];
-	sprintf(dirName, "test/%s", argv[1]);
+	sprintf(dirName, "test/MSRA1K/%s", argv[1]);
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	//map<string, Mat> binaryMask;
-	//getUserData_MSRA10K(binaryMask, "test/MSRA10K_GT");
-
+	const char *GTDir = "test/MSRA1K/GT";
 	map<string, Mat> binaryMask;
-	getGroundTruth(binaryMask, "test/MSRA1K/GT");
+	getGroundTruth(binaryMask, GTDir);
 
 	DIR *testDir = opendir(dirName);
 	dirent *testFile;
 	int fileNum = 0;
 
 	const int test_num1 = 1;
-	const int test_num2 = 4;
+	const int test_num2 = 1;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
 	double PARAM_SET1[test_num1] = {0.5};
-	int PARAM_SET2[test_num2] = {60, 70, 80, 90};
+	int PARAM_SET2[test_num2] = {70};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
 		if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 		fileNum++;
-		//if (fileNum >= 3) break;
 		cout << fileNum << " " << testFile->d_name << endl;
 
 		string imgId = string(testFile->d_name);
@@ -63,25 +60,34 @@ int main(int args, char **argv) {
 		vector<int> regionCount;
 		buildPyramidRegion(pyramidRegion, regionCount, over_pixelRegion, W);
 
+#ifdef SHOW_IMAGE
+		for (int pyramidIdx = 0; pyramidIdx < PYRAMID_SIZE; pyramidIdx++) {
+			vector<Vec3f> regionColor;
+			getRegionColor(regionColor, regionCount[pyramidIdx], pyramidRegion[pyramidIdx], LABImg);
+			char pyramidRegionName[100];
+			sprintf(pyramidRegionName, "Pyramid_Color_%d.png", pyramidIdx);
+			writeRegionImageRepresent(pyramidRegion[pyramidIdx], regionColor, pyramidRegionName, 0, 1);
+		}
+#endif
 		for (int param1 = 0; param1 < test_num1; param1++) {
 
 			Mat saliencyMap;
 			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg, PARAM_SET1[param1]);
 
+#ifdef SAVE_SALIENCY
 			int len = strlen(testFile->d_name);
 			string str = string(testFile->d_name).substr(0, len-4);
 			str = "Saliency_10K2/" + str + "_CHO.png";
 			imwrite(str, saliencyMap);
-
+#endif
 			for (int param2 = 0; param2 < test_num2; param2++) {
 
 				Mat saliencyObj;
 				getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
 				//threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
 
-				//getEvaluateResult_MSRA(precision, recall, saliencyMap, userData[string(testFile->d_name)]);
 				double precision, recall;
-				getEvaluateObj_1000(precision, recall, saliencyObj, binaryMask[imgId]);
+				evaluateMap(precision, recall, saliencyObj, binaryMask[imgId]);
 				int paramIdx = param1 * test_num2 + param2;
 				precision_param[paramIdx] += precision;
 				recall_param[paramIdx] += recall;
@@ -133,7 +139,6 @@ int main(int args, char **argv) {
 		}
 	}
 
-	fileNum--;
 	for (int param1 = 0; param1 < test_num1; param1++) {
 		for (int param2 = 0; param2 < test_num2; param2++) {
 

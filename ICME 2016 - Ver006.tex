@@ -1,0 +1,164 @@
+% Template for ICME-2016 paper; to be used with:
+%          spconf.sty  - ICASSP/ICIP LaTeX style file, and
+%          IEEEbib.bst - IEEE bibliography style file.
+% --------------------------------------------------------------------------
+\documentclass{article}
+\usepackage{spconf,amsmath,epsfig}
+
+\pagestyle{empty}
+
+
+\begin{document}\sloppy
+
+% Example definitions.
+% --------------------
+\def\x{{\mathbf x}}
+\def\L{{\cal L}}
+
+
+% Title.
+% ------
+\title{Salient Region Detection Using Convex Hull Overlap Cue}
+%
+% Single address.
+% ---------------
+\name{}
+\address{}
+\maketitle
+
+\begin{figure*}[t]
+\begin{minipage}[b]{\linewidth}
+	\centering
+	\centerline{\epsfig{figure=Flow_Chart.ps,width=18cm}}
+	%\centerline{(a)}\medskip
+\end{minipage}
+\caption{Flowchart of our algorithm.}
+\label{fig:flowchart}
+\end{figure*}
+
+\begin{figure*}[t]
+\begin{minipage}[b]{\linewidth}
+	\centering		
+	\centerline{\epsfig{figure=CHO_Flow.ps,width=18cm}}
+	%\centerline{(a)}
+	%\medskip
+\end{minipage}
+\caption{Details of Convex Hull Overlap Map.}
+\label{fig:CHO}
+\end{figure*}
+
+\begin{abstract}
+Automatic estimation of salient object regions, without any knowledge of the contents of the corresponding scenes, plays an important role in computer vision. In this paper, inspired by the convexity rule of figure-ground perception psychology~\cite{palmer1999vision}\cite{wagemans2012century}, we propose a salient region detection algorithm, which evaluates the salient scores of regions from figure-ground relations between two regions. The convex hull overlap is a new feature based on convexity rule of Gestalt laws and is good at analyzing geometric and spatial information of regions. The proposed algorithm is efficient, multi-scale and produces high-quality, full-resolution saliency map. We further use saliency map to segment the salient object by GrabCut~\cite{rother2004grabcut}. Our experimental results demonstrate that the convex hull overlap based algorithm is effective, and our approach provides improvement over existing salient object detection methods, yielding higher precision and better recall rates.
+\end{abstract}
+%
+\begin{keywords}
+Saliency region detection, visual attention, saliency map, convex hull overlap, Gestalt convexity.
+\end{keywords}
+%
+\section{Introduction}
+\label{sec:intro}
+Humans are able to detect visually distinctive noticeable foreground in the scene (so called salient objects or salient regions) effortlessly and rapidly. This capability has long been studied by cognitive scientists and has attracted a lot of interest in the computer vision. Liu et al.~\cite{liu2011learning} formulate this problem as a binary labeling task, where they separate the salient object from the background. In perceptual organization, figure-ground relation is used to assign regions as either figure or background.
+
+Previous studies have shown that salient region detection follows two main procedures: top-down and bottom-up. Top-down is slow, task-driven and determined by cognitive phenomena like knowledge, expectations, reward, and current goals. One of the most famous examples is Yarbus~\cite{al1967eye}. Meanwhile, bottom-up indicates that selection of salient regions depends on low-level features (i.e. color, texture, geometry, overlap) of images, and the previous works have done well on this direction~\cite{lu2011salient}\cite{cheng2015global}\cite{achanta2009frequency}\cite{zhai2006visual}\cite{hou2007saliency}.
+
+Although salient region detection has been extensively studied since recent years, it still remains the necessity of optimal solutions and three interrelated issues should be addressed simultaneously: 1) in-depth figure-ground analysis to improve the result of salient region detection; 2) a new feature to bridge the gap between spatial covering and saliency; 3) a model to accurately represent human visual perception for the multi-scale analysis of objects and scenes.
+
+In cognition science, research on figure-ground has been studied by the Gestalt psychologists Wertheimer et al.~\cite{wertheimer1923untersuchungen} since 1920s. Historically, Gestalt psychologies have emphasized that the Gestalt laws are innate and intrinsic to the brain rather than learned from past experience. Convexity, one of the Gestalt laws, has long been proved as a bottom-up cue to separate figural and background regions in perceptual organization. The convexity rule suggests that region on the convex side of a curved boundary tend to be figure. Kanizsa et al.~\cite{kanizsa1976convexity} test the effectiveness of convexity as a figure-ground principle, and find that regions with convex parts are seen as figure on approximately $90\%$ of trials. 
+
+Based on convexity rule, we propose a new method to detect salient region using convex hull overlap (CHO) cue. To address the first and second issues, we utilize the new feature to separate figural and background regions. We define convex hull as follows. For each region, the convex hull of it in the Euclidean plane is the smallest convex set that contains all pixels of the region. And we compute CHO as figural confidence of regions. To address the third issue, we build hierarchical segmentations using recursive normalized graph-cut algorithm~\cite{shi2000normalized} to meet our needs. Our experiments on a large number of public data have obtained very positive results.
+
+\section{Related Work}
+Our work belongs to the active research field of visual attention modeling, for which a comprehensive discussion is beyond the scope of this paper. So, we focus on relevant literature targeting pre-attentive bottom-up saliency region detection, which is fast, exogenous, automatic, involuntary and most likely feed-forward~\cite{borji2013state}. Four low-level features have been used in computational models: intensity (or intensity contrast, or luminance contrast), color, spectral and figure-ground cues.
+
+Intensity and color contrast features are simple and widely used. Zhai et al.~\cite{zhai2006visual} use luminance information. Achanta et al.~\cite{achanta2009frequency} define pixel saliency using a pixel’s color difference from the average image color. Cheng et al.~\cite{cheng2015global} compute saliency map by evaluating global color contrast differences among regions. In most cases, color contrast information is sufficient to extract salient regions. But in color complex background, the background regions may be labeled as salient regions due to sharp color contrast.
+
+Spectral information is used in Hou et al.~\cite{hou2007saliency}. They analyze the log-spectrum of an input and propose a fast method to construct the corresponding saliency map in spatial domain. The elegant approach, however, only considers first order average color, which can be insufficient to analyze complex variations common in natural images.
+
+As for figure-ground cues, in neurophysiological science, Koch et al.~\cite{Koch2004The} provide a large number of studies indicating that cortical networks in area V1 and V2 are important neural mechanisms in contour grouping and figure-ground organization. Wagemans et al.~\cite{wagemans2012century} conclude that the connectivity and rules of the visual cortex allow illusory contours to be formed and figure-ground segmentation to be performed by autonomous processes. Kimchi et al.~\cite{kimchi2008figure} claim that figure-ground segregation can occur before focal attention.
+
+The convexity cue of Gestalt laws, as widely believed, is a strong cue to assign figure-ground relation. Bertamini et al.~\cite{bertamini2013processing} provide the evidence that the visual system can extract information about convexities and concavities along contour in an image. They conclude that convexity affect figure-ground relation. Fowlkes et al.~\cite{fowlkes2007local} find convexity indeed has the ability to discriminate which part is foreground on nature images by ecological statistics.
+
+Lu et al.~\cite{lu2011salient} use convexity and surroundedness cues to detect salient objects. However, their model is sensitive to the superpixels boundary. We incorporate the two cues into convex hull overlap (CHO) cue and provide higher precision saliency map.
+
+Our scheme significantly differs from other earlier work in: 1) The hierarchical model based on normalized cut fits the splitting and merging processes in human visual perception. 2) Previous works only analysis on color and texture cues, while our CHO cue make up gap between the spatial regions covering and the regions saliency. 3) CHO is a development Gestalt cue, while other popular figure-ground cues such as convexity and surroundedness are special cases of CHO cue. Figure~\ref{fig:flowchart} shows the flowchart of our algorithm.
+
+\section{Hierarchical Model}
+This is preprocess in our algorithm. Our goal is to build $n$ hierarchical segmentations from input image. In any region, the color values of pixels are similar and the space positions of pixels are close but they may not need to abut each other. First, we over segment the input image into regions. Then we build hierarchical model using normalized graph-cut algorithm~\cite{shi2000normalized}.
+
+\subsection{Over Segmentation}
+We over segment the input image into regions, denoted as $\{\mathbf{r_1}, \mathbf{r_2}, \cdots, \mathbf{r_m}\}$, using Felzenszwalb et al.~\cite{felzenszwalb2004efficient} algorithm. Figure~\ref{fig:flowchart}(b) shows the result of over segmentation.
+
+A weighted graph $G=(V,E)$ is constructed by taking each region as a node and connecting each pair of regions by an edge. The weight on that edge should reflect the likelihood that the two regions belong to one object. Using the $L^*a^*b^*$ value of the pixels and their spatial location, we can define the graph edge weight connecting the two nodes $\mathbf{r_i}$ and $\mathbf{r_j}$ as:
+\begin{eqnarray}
+	w(\mathbf{r_i},\mathbf{r_j}) = \big(|\mathbf{r_i}|\cdot|\mathbf{r_j}|\big)\cdot e^{\frac{D_c(\mathbf{r_i},\mathbf{r_j})}{-\sigma_c^2}}\cdot e^{\frac{D_s(\mathbf{r_i},\mathbf{r_j})}{-\sigma_s^2}}
+\end{eqnarray}
+where $D_c(\mathbf{r_i},\mathbf{r_j})$ is the $L^*a^*b^*$ space distance between regions $\mathbf{r_i}$ and $\mathbf{r_j}$, $\sigma_c^2$ controls the strength of color distance weighting, $D_s(\mathbf{r_i},\mathbf{r_j})$ is the spatial distance between regions $\mathbf{r_i}$ and $\mathbf{r_j}$, $\sigma_s^2$ controls the strength of spatial distance weighting, and $|\mathbf{r_i}|$ is the amount of pixels of the region $\mathbf{r_i}$.
+
+\subsection{Build Hierarchical Model}
+Normalized graph-cut algorithm is recursively used to build $n$ hierarchical segmentations. We define $L = \{l_1, l_2,\cdots,l_n\}$ as the set of hierarchical segmentations. $l_1$ is the coarsest segmentation that contains $2$ regions and $l_n$ is the finest that contains at most $2^n$ regions. Figure~\ref{fig:flowchart}(c) shows the result of hierarchical segmentations. We use $5$ layers in our experiments.
+
+There are several reasons to employ hierarchical segmentation. First, theoretically it accords with the human visual perception for the multi-scale analysis of objects and scenes~\cite{palmer1999vision}. Region in current layer is separated into at most $2$ regions in lower (finer) layer. Figure~\ref{fig:CHO}(c) shows the results of $3$ hierarchical segmentations. For example, region $1.2$ in Layer $l_1$ is composed by regions $1.2.1$ and $1.2.2$ in Layer $l_2$. In next section, we further use this model to get accurate CHO value of regions in finest layer $l_n$.
+
+\section{Evaluate Saliency Map}
+\subsection{Convex Hull Overlap Map}
+We define the set of regions in layer $l_i$ as $\{\mathbf{R_1^i}, \mathbf{R_2^i},\cdots, \mathbf{R_m^i}\}$. We compute convex hull $\mathbf{C_j^i}$ for each region $\mathbf{R_j^i}$ in layer $l_i$. By definition, convex hull $\mathbf{C_j^i}$ contains all pixels of region $\mathbf{R_j^i}$, besides, $\mathbf{C_j^i}$ may also contain pixels of other regions. Obviously, on the one hand, if the region is background, its convex hull may contain several pixels belong to other regions. On the other hand, if the region is foreground, it may occupy pixels of other convex hulls. We define the convex hull overlap between region $\mathbf{R_{i_1}^{j_1}}$ and $\mathbf{C_{i_2}^{j_2}}$ as follows.
+\begin{eqnarray}
+	cho(\mathbf{R_{i_1}^{j_1}}, \mathbf{C_{i_2}^{j_2}}) = \frac{|\mathbf{R_{i_1}^{j_1}}\wedge\mathbf{C_{i_2}^{j_2}}|}{|\mathbf{R_{i_1}^{j_1}}|}
+\end{eqnarray}
+where $\mathbf{C_{i_2}^{j_2}}$ is the convex hull corresponding to region $\mathbf{R_{i_2}^{j_2}}$, $|\mathbf{R_{i_1}^{j_1}}\wedge\mathbf{C_{i_2}^{j_2}}|$ is the amount of pixels that are marked as $\mathbf{R_{i_1}^{j_1}}$ and contained by $\mathbf{C_{i_2}^{j_2}}$, and $|\mathbf{R_{i_1}^{j_1}}|$ is the amount of region $\mathbf{R_{i_1}^{j_1}}$. Figure~\ref{fig:CHO}(d) shows the $cho$ value of region $1.2.2$. We ignore the convex hulls that contain all pixels of the region $1.2.2$. If the $cho$ value is high, the region $1.2.2$ is likely to be figure refer to the convex hull. Then, We compute the saliency of regions in the finest layer $l_n$ as follows.
+\begin{eqnarray}
+	S_{CHO}(\mathbf{R_i^n}) &=& \frac{\sum_{j=1}^n\sum_{\mathbf{R_i^n} \not\subseteq \mathbf{R_k^j}}|\mathbf{R_i^n}\wedge\mathbf{C_k^j}|}{\sum_{j=1}^n\big(|l_j|-1\big)\cdot|\mathbf{R_i^n}|} \nonumber \\
+	~ &=& \frac{\sum_{j=1}^n\sum_{\mathbf{R_i^n} \not\subseteq \mathbf{R_k^j}}cho(\mathbf{R_i^n}, \mathbf{C_k^j})}{\sum_{j=1}^n\big(|l_j|-1\big)}
+\end{eqnarray}
+
+where $n$ is the amount of layers, $\mathbf{R_i^n}\not\subseteq\mathbf{R_k^j}$ means that region $\mathbf{R_i^n}$ is not a subset of region $\mathbf{R_k^j}$ in layer $l_j$, $|l_j|$ is the amount of regions in layer $l_j$. If the region $\mathbf{R_i^n}$ is figure, it may cover a lot of convex hulls of background regions. Then the $S_{CHO}$ value is high. Figure~\ref{fig:CHO}(e) shows the CHO map. In CHO map, the bright regions indicate that they are saliency.
+
+Although regions with high $S_{CHO}$ value can be labeled as salient regions, the segmentations may introduce artifacts. In order to reduce noisy saliency results caused by bad segmentations, we use a smoothing procedure to refine the saliency value for each region. We smooth the saliency value of each region by the weighted average of the saliency values of belonged regions in coarser layers.
+\begin{eqnarray}
+	S_{CHO}^{smooth}(\mathbf{R_i^n}) = \frac{1}{n}\sum_{j=1}^n\big[(1-\alpha)S_{CHO}(\mathbf{R_i^n}) + \alpha\mu_{CHO}^j)]
+\end{eqnarray}
+\begin{eqnarray}
+	\mu_{CHO}^j = \frac{1}{m}\sum_{k=1}^mS_{CHO}(\mathbf{R_k^n}),~\mathbf{R_i^n},\mathbf{R_k^n}\subseteq\mathbf{R_o^j}
+\end{eqnarray}
+where $n$ is the amount of layers, $\alpha$ is a smooth factor, $\mu_{CHO}^j$ computes the average $S_{CHO}$ of regions $\mathbf{R_k^n}$ that satisfy the condition that regions $\mathbf{R_i^n}$ and $\mathbf{R_k^n}$ are belong to the same region in layer $l_j$. In the coarse layer, we use small $\alpha$ to preserve the distinctive saliency of regions. In the fine layer, we use large $\alpha$ to smooth the noisy regions. Figure~\ref{fig:flowchart}(d) shows the saliency map computed from CHO of regions.
+
+\subsection{Global Contrast Map}
+As is known to all, our biological vision system is highly sensitive to color contrast in visual signal. We use the regions from the over segmentation to define color contrast. And we further incorporate spatial information by introducing a spatial weighting term to increase the effects of closer regions and decrease the effects of farther regions. For any region $\mathbf{r_i}$, the salient value is
+\begin{eqnarray}
+	S_{gc}(\mathbf{r_i}) = w_s(\mathbf{r_i})\sum_{\mathbf{r_j}\neq\mathbf{r_i}}e^{\frac{D_s(\mathbf{r_i},\mathbf{r_j})}{-\sigma_s^2}}D_c(\mathbf{r_i},\mathbf{r_j})
+\end{eqnarray}
+where $w_s(\mathbf{r_i})$ gives a low value if region $\mathbf{r_i}$ is a border region away from the center and it gives a high value if the region is close to the center of the image, $D_c(\mathbf{r_i},\mathbf{r_j})$ is the $L^*a^*b^*$ space distance between regions $\mathbf{r_i}$ and $\mathbf{r_j}$ in the finest layer $l_n$, $D_s(\mathbf{r_i},\mathbf{r_j})$ is the spatial distance between regions $\mathbf{r_i}$ and $\mathbf{r_j}$.
+
+\subsection{Pixel Saliency Map}
+In our algorithm, saliency map takes into account both convex hull overlap cue and global contrast. For any pixel $p$ in the image, we define the saliency of it as follows.
+\begin{eqnarray}
+	S(p) = S_{CHO}^{smooth}(\mathbf{R_i^n})\cdot S_{gc}(\mathbf{r_j}),~~p\in \mathbf{R_i^n} \wedge p\in\mathbf{r_j}
+\end{eqnarray}
+The higher value of $S(\mathbf{R_i^n})$, the higher confidence that the region is salient region.
+
+\subsection{Saliency Map Refinement}
+Inspired by Cheng et al.~\cite{cheng2015global}, we introduce two steps to improve accuracy of saliency map. First, a spatial prior is used to estimate the non-salient regions in borders. Second, a color space smoothing is used to uniformly highlight the entire saliency region of the image.
+
+We observed that regions with long borders overlapping with image borders are typically non-salient background regions, which called border regions. We decrease the saliency of these border regions.
+
+Besides, color space smoothing is designed for high recall rate. However, the true-color space contains $256^3$ possible colors, which is too large to smooth the color histogram. First, we build a compact color histogram using color quantization method~\cite{heckbert1982color}. In our implementation, only $36$ colors are sufficient to preserve the image details and smooth color space. Second, we get the average saliency of each color by weighted average of the saliency values of $m$ similar colors.
+\begin{eqnarray}
+	S_c(c) = \sum_{i=1}^m\big(1-\frac{D(c,c_i)}{T}\big)S_s(c_i)
+\end{eqnarray}
+where $S_s(c_i)$ is the average saliency value of color $c_i$. $D(c,c_i)$ is the color distance between two colors $c$ and $c_i$, $T = \sum_{i=1}^m(D(c,c_i))$ is the sum of distances between color $c$ and its $m$ nearest neighbors $c_i$. Some border region pixels may get non-zero saliency values after smoothing. We reset the saliency value of border region to zero and re-calculate the saliency value of each region as the average saliency value of its corresponding pixels.
+
+\section{Salient Regions Extraction}
+In a highly influential work, GrabCut~\cite{rother2004grabcut} make critical changes to the graph-cut formulation to allow processing of noisy initialization. We use GrabCut to extract a precise image mask. We initialize the GrabCut by binarizing the saliency map using a fixed threshold $T_b$. For image pixels with saliency value higher than threshold $T_b$, the largest connected region is considered as initial candidate region of the most dominate salient object. This candidate region is labeled as possible foreground region, while other regions are labeled as possible foreground region. In our experiments, the threshold $T_b$ is chosen empirically to be the threshold that gives $95\%$ recall rate in our fixed thresholding experiments. We iterate the GrabCut $4$ times to extract accurate salient regions.
+
+\section{Experiments}
+We have evaluated the results of our approach on the publicly available database MSRA1K~\cite{achanta2009frequency} and MSRA10K~\cite{cheng2015global}. The databases have accurate human-marked labels for salient regions. We compared the proposed global contrast based methods with state-of-the-art saliency detection methods.
+\section{Conclusion and Discussion}
+
+% References should be produced using the bibtex program from suitable
+% BiBTeX files (here: strings, refs, manuals). The IEEEbib.bst bibliography
+% style file from IEEE produces unsorted bibliography list.
+% -------------------------------------------------------------------------
+\bibliographystyle{ieeetr}
+\bibliography{icme2016template}
+
+\end{document}
