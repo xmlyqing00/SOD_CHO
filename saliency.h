@@ -119,7 +119,7 @@ void getCHOSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const v
 
 			Mat convexMap(imgSize, CV_8UC1, Scalar(0));
 			fillConvexPoly(convexMap, regionBound, Scalar(255));
-			int tmp = regionOverlap[6];
+			//int tmp = regionOverlap[6];
 			getOverlap(regionOverlap, pyramidRegion[pyramidIdx], i, pyramidRegion.back(), convexMap);
 #ifdef SHOW_IMAGE
 			cout << regionOverlap[6] - tmp << endl;

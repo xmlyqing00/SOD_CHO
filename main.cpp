@@ -13,6 +13,8 @@ int main(int args, char **argv) {
 	return 0;
 #endif
 
+	int st_time = clock();
+
 	char dirName[100];
 	sprintf(dirName, "test/MSRA1K/%s", argv[1]);
 
@@ -30,11 +32,11 @@ int main(int args, char **argv) {
 	int fileNum = 0;
 
 	const int test_num1 = 1;
-	const int test_num2 = 1;
+	const int test_num2 = 5;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
 	double PARAM_SET1[test_num1] = {0.5};
-	int PARAM_SET2[test_num2] = {70};
+	int PARAM_SET2[test_num2] = {70, 80, 90, 100, 110};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
@@ -44,7 +46,7 @@ int main(int args, char **argv) {
 
 		string imgId = string(testFile->d_name);
 		imgId = imgId.substr(0, imgId.length()-4);
-		//if (fileNum < 612) continue;
+		if (fileNum < 0) continue;
 		char inputImgName[100];
 		sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
@@ -84,17 +86,27 @@ int main(int args, char **argv) {
 
 				Mat saliencyObj;
 				getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
+//				imshow("saliencyMap", saliencyMap);
+//				imshow("obj", saliencyObj);
+//				imshow("mask", binaryMask[imgId]);
+
 				//threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
 
-				double precision, recall;
-				evaluateMap(precision, recall, saliencyObj, binaryMask[imgId]);
 				int paramIdx = param1 * test_num2 + param2;
-				precision_param[paramIdx] += precision;
-				recall_param[paramIdx] += recall;
+				double tmp_precision = precision_param[paramIdx];
+				double tmp_recall = recall_param[paramIdx];
 
-				printf("cur %lf %lf total %lf %lf", precision, recall,
+				evaluateMap(precision_param[paramIdx], recall_param[paramIdx], binaryMask[imgId], saliencyObj);
+
+				tmp_precision = precision_param[paramIdx] - tmp_precision;
+				tmp_recall = recall_param[paramIdx] - tmp_recall;
+
+				printf("cur %lf %lf total %lf %lf",
+					   tmp_precision, tmp_recall,
 					   precision_param[paramIdx] / fileNum, recall_param[paramIdx] / fileNum);
+
 				cout << endl;
+//				waitKey();
 
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
@@ -119,14 +131,14 @@ int main(int args, char **argv) {
 			resize(resultMap, resultMap, Size(), 0.5, 0.5);
 
 			char fileName[100];
-			sprintf(fileName, "test/result/%04d_%04d__%s", (int)(precision*10000), (int)(recall*10000), testFile->d_name);
+			sprintf(fileName, "test/result/%04d_%04d__%s", (int)(tmp_precision*10000), (int)(tmp_recall*10000), testFile->d_name);
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
-			if (precision < 0.8)
+			if (tmp_precision < 0.8 || tmp_recall < 0.8)
 				imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
-			if (precision < 0.8) {
+			if (tmp_precision < 0.8 || tmp_recall < 0.8) {
 				char fileName[100];
 				sprintf(fileName, "test/negative/%s", testFile->d_name);
 				imwrite(fileName, inputImg);
@@ -151,6 +163,8 @@ int main(int args, char **argv) {
 			cout << endl;
 		}
 	}
+
+	cout << (clock() - st_time) / 3600000.0 << endl;
 
 	return 0;
 

@@ -12,7 +12,7 @@ int Point2Index(Point u, int width) {
 	return u.y * width + u.x;
 }
 
-void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3f> &regionColor, const Mat &LABImg) {
+void overSegmentation(Mat &pixelRegion, int &regionCount, const Mat &LABImg) {
 
 	vector<TypeEdge> edges;
 	Size imgSize = LABImg.size();
@@ -105,8 +105,6 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3f> &regionC
 	delete[] regionHead;
 	delete[] regionIndex;
 	delete[] regionSize;
-	// get region represent color
-	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
 	//cout << regionCount << endl;
 
@@ -120,9 +118,12 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, vector<Vec3f> &regionC
 void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg) {
 
 	regionCount = 0;
-	vector<Vec3f> regionColor;
 
-	overSegmentation(pixelRegion, regionCount, regionColor, LABImg);
+	overSegmentation(pixelRegion, regionCount, LABImg);
+
+	// get region represent color
+	vector<Vec3f> regionColor;
+	getRegionColor(regionColor, regionCount, pixelRegion, LABImg);
 
 	W = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
 
