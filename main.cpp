@@ -16,14 +16,14 @@ int main(int args, char **argv) {
 	int st_time = clock();
 
 	char dirName[100];
-	sprintf(dirName, "test/MSRA1K/%s", argv[1]);
+	sprintf(dirName, "test/MSRA10K/%s", argv[1]);
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	const char *GTDir = "test/MSRA1K/GT";
+	const char *GTDir = "test/MSRA10K/GT";
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, GTDir);
 
@@ -32,11 +32,11 @@ int main(int args, char **argv) {
 	int fileNum = 0;
 
 	const int test_num1 = 1;
-	const int test_num2 = 1;
+	const int test_num2 = 2;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
 	double PARAM_SET1[test_num1] = {0.5};
-	int PARAM_SET2[test_num2] = {80};
+	int PARAM_SET2[test_num2] = {70, 75};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
@@ -133,7 +133,7 @@ int main(int args, char **argv) {
 			char fileName[100];
 			sprintf(fileName, "test/result/%04d_%04d__%s", (int)(tmp_precision*10000), (int)(tmp_recall*10000), testFile->d_name);
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
-			if (tmp_precision > 0.9 && tmp_recall > 0.9)
+			if (tmp_precision < 0.8 || tmp_recall < 0.8)
 				imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);

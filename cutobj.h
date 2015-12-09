@@ -194,61 +194,43 @@ void refineSalientObj(Mat &saliencyObj) {
 
 void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg, const int thres0) {
 
-	Size imgSize = _saliencyMap.size();
+	Mat saliencyMap;
+	GaussianBlur(_saliencyMap, saliencyMap, Size(9,9), 0);
 
-	Mat borderMap(imgSize, CV_8UC1, Scalar(255));
-	borderMap(Rect(BORDER_WIDTH,BORDER_WIDTH,imgSize.width-BORDER_WIDTH,imgSize.height-BORDER_WIDTH)).setTo(0);
+	Size imgSize = saliencyMap.size();
+	//Rect borderRect(BORDER_WIDTH, BORDER_WIDTH, imgSize.width - BORDER_WIDTH*2, imgSize.height - BORDER_WIDTH*2);
 
-	//Mat saliencyMap;
-	//GaussianBlur(_saliencyMap, saliencyMap, Size(9, 9), 0);
-	Mat saliencyMap = _saliencyMap.clone();
-	//normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
-	saliencyMap.setTo(0, borderMap);
-	threshold(saliencyMap, saliencyMap, thres0, 255, THRESH_TOZERO);
+	Mat GCMask(imgSize, CV_8UC1, GC_PR_FGD);
+	//GCMask(borderRect).setTo(GC_PR_FGD);
 
-	Mat regionMask;
-	getMainRegionMask(regionMask, saliencyMap);
-
-	Rect regionRect;
-	getMainRegionRect(regionRect, regionMask);
-	saliencyMap = saliencyMap(regionRect);
-	regionMask = regionMask(regionRect);
-
-	Mat colorImg = LABImg(regionRect).clone();
-	cvtColor(colorImg, colorImg, COLOR_Lab2BGR);
-	colorImg.convertTo(colorImg, CV_8UC3, 255);
-
-	Mat GCmask(saliencyMap.size(), CV_8UC1, GC_PR_BGD);
 	Mat tmpMask;
-	threshold(saliencyMap, tmpMask, thres0, 255, THRESH_BINARY);
-	GCmask.setTo(GC_PR_FGD, tmpMask);
+	threshold(saliencyMap, tmpMask, thres0, 255, THRESH_BINARY_INV);
+	GCMask.setTo(GC_PR_BGD, tmpMask);
 	threshold(saliencyMap, tmpMask, HIGH_SALIENCY_THRESHOLD, 255, THRESH_BINARY);
-	GCmask.setTo(GC_FGD, regionMask);
+	GCMask.setTo(GC_FGD, tmpMask);
 	threshold(saliencyMap, tmpMask, LOW_SALIENCY_THRESHOLD, 255, THRESH_BINARY_INV);
-	GCmask.setTo(GC_BGD, tmpMask);
-
-	Mat bgdModel, fgdModel;
-	grabCut(colorImg, GCmask, Rect(), bgdModel, fgdModel, 3, GC_INIT_WITH_MASK);
-
-	GCmask = GCmask | 2;
-	Mat globalMask(imgSize, CV_8UC1, GC_PR_BGD);
-	GCmask.copyTo(globalMask(regionRect));
-
-	colorImg = LABImg.clone();
+	GCMask.setTo(GC_BGD, tmpMask);
+#ifdef SHOW_IMAGE
+	writeGCMask(GCMask, "pre", 0, 1);
+#endif
+	Mat colorImg = LABImg.clone();
 	cvtColor(colorImg, colorImg, COLOR_Lab2BGR);
 	colorImg.convertTo(colorImg, CV_8UC3, 255);
+	Mat bgdModel, fgdModel;
+	//cvtColor(saliencyMap, tmpMask, COLOR_GRAY2BGR);
+	grabCut(colorImg, GCMask, Rect(), bgdModel, fgdModel, 6, GC_INIT_WITH_MASK);
 
-	bgdModel.release();
-	fgdModel.release();
-	grabCut(colorImg, globalMask, Rect(), bgdModel, fgdModel, 3, GC_INIT_WITH_MASK);
+#ifdef SHOW_IMAGE
+	writeGCMask(GCMask, "after", 0, 1);
+#endif
 
-	globalMask = globalMask & 1;
-	compare(globalMask, 1, saliencyObj, CMP_EQ);
+	GCMask = GCMask & 1;
+	compare(GCMask, 1, saliencyObj, CMP_EQ);
 
 	refineSalientObj(saliencyObj);
 
 	if (sum(saliencyObj).val[0] == 0) {
-		threshold(_saliencyMap, saliencyObj, 130, 255, THRESH_BINARY);
+		threshold(saliencyMap, saliencyObj, 130, 255, THRESH_BINARY);
 		cout << "Salient Obj is None !!" << endl;
 	}
 

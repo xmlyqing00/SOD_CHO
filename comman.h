@@ -2,7 +2,7 @@
 #define COMMAN_H
 
 //#define SHOW_IMAGE
-#define POS_NEG_RESULT_OUTPUT
+//#define POS_NEG_RESULT_OUTPUT
 //#define EVALUATE_MASK
 
 #include <stdlib.h>
@@ -38,13 +38,13 @@ const int BORDER_WIDTH = 4;
 const int PIXEL_CONNECT = 8;
 const int MIN_REGION_SIZE = 200; // 200
 const int SEGMENT_THRESHOLD = 50; // 80
-const int PYRAMID_SIZE = 3;
+const int PYRAMID_SIZE = 5;
 const int QUANTIZE_LEVEL = 5;
 const double BORDER_REGION = 0.1;
 const int SALIENCY_THRESHOLD = 70;
-const int HIGH_SALIENCY_THRESHOLD = 240;
-const int LOW_SALIENCY_THRESHOLD = 20;
-const double MIN_REGION_SALIENCY = 0.5;
+const int HIGH_SALIENCY_THRESHOLD = 230;
+const int LOW_SALIENCY_THRESHOLD = 25;
+const double MIN_REGION_SALIENCY = 0.2;
 
 #define INF 2000000000
 

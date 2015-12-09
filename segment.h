@@ -110,7 +110,6 @@ void overSegmentation(Mat &pixelRegion, int &regionCount, const Mat &LABImg) {
 
 #ifdef SHOW_IMAGE
 	writeRegionImageRandom(regionCount, pixelRegion, "Segment_Image.png", 1, 1);
-	writeRegionImageRepresent(pixelRegion, regionColor, "Segment_Image_Color.png", 1, 1);
 #endif
 
 }
@@ -173,6 +172,7 @@ void segmentImage(Mat &W, Mat &pixelRegion, int &regionCount, const Mat &LABImg)
 			W.ptr<double>(j)[i] = W.ptr<double>(i)[j];
 		}
 	}
+
 }
 
 #endif // SEGMENT_H

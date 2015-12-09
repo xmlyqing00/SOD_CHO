@@ -75,8 +75,8 @@ void getCHODetail(Mat &CHODetailMap, const int &objIdx, const Mat &objPixelRegio
 	}
 
 	for (int k = 0; k < 3; k++) {
-		objColor.val[k] /= objCount;
-		bgColor.val[k] /= bgCount;
+		if (objCount > 0) objColor.val[k] /= objCount;
+		if (objCount > 0) bgColor.val[k] /= bgCount;
 	}
 
 	for (int y = 0; y < imgSize.height; y++) {
@@ -119,20 +119,16 @@ void getCHOSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const v
 
 			Mat convexMap(imgSize, CV_8UC1, Scalar(0));
 			fillConvexPoly(convexMap, regionBound, Scalar(255));
-			//int tmp = regionOverlap[6];
 			getOverlap(regionOverlap, pyramidRegion[pyramidIdx], i, pyramidRegion.back(), convexMap);
-#ifdef SHOW_IMAGE
-			cout << regionOverlap[6] - tmp << endl;
-#endif
 			overlapCount++;
 
 #ifdef SHOW_IMAGE
-			Mat CHODetailMap;
-			getCHODetail(CHODetailMap, 6, pyramidRegion.back(), i, pyramidRegion[pyramidIdx], regionBound, LABImg);
-			char CHODetailMapName[100];
-			sprintf(CHODetailMapName, "CHO_Details/pyramid%d_bg%d.png", pyramidIdx, i);
-			imwrite(CHODetailMapName, CHODetailMap);
-			imshow(CHODetailMapName, CHODetailMap);
+//			Mat CHODetailMap;
+//			getCHODetail(CHODetailMap, 6, pyramidRegion.back(), i, pyramidRegion[pyramidIdx], regionBound, LABImg);
+//			char CHODetailMapName[100];
+//			sprintf(CHODetailMapName, "CHO_Details/pyramid%d_bg%d.png", pyramidIdx, i);
+//			imwrite(CHODetailMapName, CHODetailMap);
+//			imshow(CHODetailMapName, CHODetailMap);
 #endif
 
 		}
