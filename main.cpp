@@ -32,11 +32,11 @@ int main(int args, char **argv) {
 	int fileNum = 0;
 
 	const int test_num1 = 1;
-	const int test_num2 = 5;
+	const int test_num2 = 1;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
 	double PARAM_SET1[test_num1] = {0.5};
-	int PARAM_SET2[test_num2] = {70, 80, 90, 100, 110};
+	int PARAM_SET2[test_num2] = {80};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
@@ -46,7 +46,7 @@ int main(int args, char **argv) {
 
 		string imgId = string(testFile->d_name);
 		imgId = imgId.substr(0, imgId.length()-4);
-		if (fileNum < 0) continue;
+		//if (fileNum < 100) continue;
 		char inputImgName[100];
 		sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
@@ -133,7 +133,7 @@ int main(int args, char **argv) {
 			char fileName[100];
 			sprintf(fileName, "test/result/%04d_%04d__%s", (int)(tmp_precision*10000), (int)(tmp_recall*10000), testFile->d_name);
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
-			if (tmp_precision < 0.8 || tmp_recall < 0.8)
+			if (tmp_precision > 0.9 && tmp_recall > 0.9)
 				imwrite(fileName, resultMap);
 			imwrite("Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);

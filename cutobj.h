@@ -227,21 +227,13 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg
 	threshold(saliencyMap, tmpMask, LOW_SALIENCY_THRESHOLD, 255, THRESH_BINARY_INV);
 	GCmask.setTo(GC_BGD, tmpMask);
 
-	//writeGCMask(GCmask, "Pre_GC.png", 0, 1);
-	//imshow("saliency", saliencyMap);
-	//imshow("color", colorImg);
-
 	Mat bgdModel, fgdModel;
 	grabCut(colorImg, GCmask, Rect(), bgdModel, fgdModel, 3, GC_INIT_WITH_MASK);
 
-	//writeGCMask(GCmask, "After_GC.png", 0, 1);
-
-	GCmask = GCmask & 1;
-	compare(GCmask, 1, tmpMask, CMP_EQ);
+	GCmask = GCmask | 2;
 	Mat globalMask(imgSize, CV_8UC1, GC_PR_BGD);
-	(globalMask(regionRect)).setTo(GC_FGD, tmpMask);
+	GCmask.copyTo(globalMask(regionRect));
 
-	//writeGCMask(globalMask, "Before_Global.png", 0, 1);
 	colorImg = LABImg.clone();
 	cvtColor(colorImg, colorImg, COLOR_Lab2BGR);
 	colorImg.convertTo(colorImg, CV_8UC3, 255);
@@ -250,13 +242,10 @@ void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg
 	fgdModel.release();
 	grabCut(colorImg, globalMask, Rect(), bgdModel, fgdModel, 3, GC_INIT_WITH_MASK);
 
-	//writeGCMask(globalMask, "After_Global.png", 0, 1);
 	globalMask = globalMask & 1;
 	compare(globalMask, 1, saliencyObj, CMP_EQ);
-	//imshow("obj", saliencyObj);
+
 	refineSalientObj(saliencyObj);
-	//imshow("_obj", saliencyObj);
-	//waitKey();
 
 	if (sum(saliencyObj).val[0] == 0) {
 		threshold(_saliencyMap, saliencyObj, 130, 255, THRESH_BINARY);
