@@ -43,10 +43,10 @@ RM = /usr/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/lyq/Sources/Covering_Hierarchy_For_Video_Retargeting
+CMAKE_SOURCE_DIR = /home/lyq/Sources/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/lyq/Sources/Covering_Hierarchy_For_Video_Retargeting
+CMAKE_BINARY_DIR = /home/lyq/Sources/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -73,9 +73,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/lyq/Sources/Covering_Hierarchy_For_Video_Retargeting/CMakeFiles /home/lyq/Sources/Covering_Hierarchy_For_Video_Retargeting/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/lyq/Sources/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue/CMakeFiles /home/lyq/Sources/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/lyq/Sources/Covering_Hierarchy_For_Video_Retargeting/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/lyq/Sources/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -103,19 +103,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named Covering_Hierarchy_For_Video_Retargeting
-
-# Build rule for target.
-Covering_Hierarchy_For_Video_Retargeting: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 Covering_Hierarchy_For_Video_Retargeting
-.PHONY : Covering_Hierarchy_For_Video_Retargeting
-
-# fast build rule for target.
-Covering_Hierarchy_For_Video_Retargeting/fast:
-	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build
-.PHONY : Covering_Hierarchy_For_Video_Retargeting/fast
-
-#=============================================================================
 # Target rules for targets named FreenectDriver
 
 # Build rule for target.
@@ -128,13 +115,107 @@ FreenectDriver/fast:
 	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/build
 .PHONY : FreenectDriver/fast
 
+#=============================================================================
+# Target rules for targets named Salient_Region_Detection_With_Convex_Hull_Overlap_Cue
+
+# Build rule for target.
+Salient_Region_Detection_With_Convex_Hull_Overlap_Cue: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 Salient_Region_Detection_With_Convex_Hull_Overlap_Cue
+.PHONY : Salient_Region_Detection_With_Convex_Hull_Overlap_Cue
+
+# fast build rule for target.
+Salient_Region_Detection_With_Convex_Hull_Overlap_Cue/fast:
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build
+.PHONY : Salient_Region_Detection_With_Convex_Hull_Overlap_Cue/fast
+
+comman.o: comman.cpp.o
+.PHONY : comman.o
+
+# target to build an object file
+comman.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/comman.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/comman.cpp.o
+.PHONY : comman.cpp.o
+
+comman.i: comman.cpp.i
+.PHONY : comman.i
+
+# target to preprocess a source file
+comman.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/comman.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/comman.cpp.i
+.PHONY : comman.cpp.i
+
+comman.s: comman.cpp.s
+.PHONY : comman.s
+
+# target to generate assembly for a file
+comman.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/comman.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/comman.cpp.s
+.PHONY : comman.cpp.s
+
+cutobj.o: cutobj.cpp.o
+.PHONY : cutobj.o
+
+# target to build an object file
+cutobj.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/cutobj.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/cutobj.cpp.o
+.PHONY : cutobj.cpp.o
+
+cutobj.i: cutobj.cpp.i
+.PHONY : cutobj.i
+
+# target to preprocess a source file
+cutobj.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/cutobj.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/cutobj.cpp.i
+.PHONY : cutobj.cpp.i
+
+cutobj.s: cutobj.cpp.s
+.PHONY : cutobj.s
+
+# target to generate assembly for a file
+cutobj.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/cutobj.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/cutobj.cpp.s
+.PHONY : cutobj.cpp.s
+
+evaluate.o: evaluate.cpp.o
+.PHONY : evaluate.o
+
+# target to build an object file
+evaluate.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/evaluate.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/evaluate.cpp.o
+.PHONY : evaluate.cpp.o
+
+evaluate.i: evaluate.cpp.i
+.PHONY : evaluate.i
+
+# target to preprocess a source file
+evaluate.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/evaluate.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/evaluate.cpp.i
+.PHONY : evaluate.cpp.i
+
+evaluate.s: evaluate.cpp.s
+.PHONY : evaluate.s
+
+# target to generate assembly for a file
+evaluate.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/evaluate.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/evaluate.cpp.s
+.PHONY : evaluate.cpp.s
+
 main.o: main.cpp.o
 .PHONY : main.o
 
 # target to build an object file
 main.cpp.o:
-	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.o
 	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/main.cpp.o
 .PHONY : main.cpp.o
 
 main.i: main.cpp.i
@@ -142,8 +223,8 @@ main.i: main.cpp.i
 
 # target to preprocess a source file
 main.cpp.i:
-	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.i
 	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/main.cpp.i
 .PHONY : main.cpp.i
 
 main.s: main.cpp.s
@@ -151,9 +232,117 @@ main.s: main.cpp.s
 
 # target to generate assembly for a file
 main.cpp.s:
-	$(MAKE) -f CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/build.make CMakeFiles/Covering_Hierarchy_For_Video_Retargeting.dir/main.cpp.s
 	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/main.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/main.cpp.s
 .PHONY : main.cpp.s
+
+ncut.o: ncut.cpp.o
+.PHONY : ncut.o
+
+# target to build an object file
+ncut.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/ncut.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/ncut.cpp.o
+.PHONY : ncut.cpp.o
+
+ncut.i: ncut.cpp.i
+.PHONY : ncut.i
+
+# target to preprocess a source file
+ncut.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/ncut.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/ncut.cpp.i
+.PHONY : ncut.cpp.i
+
+ncut.s: ncut.cpp.s
+.PHONY : ncut.s
+
+# target to generate assembly for a file
+ncut.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/ncut.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/ncut.cpp.s
+.PHONY : ncut.cpp.s
+
+pyramid.o: pyramid.cpp.o
+.PHONY : pyramid.o
+
+# target to build an object file
+pyramid.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/pyramid.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/pyramid.cpp.o
+.PHONY : pyramid.cpp.o
+
+pyramid.i: pyramid.cpp.i
+.PHONY : pyramid.i
+
+# target to preprocess a source file
+pyramid.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/pyramid.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/pyramid.cpp.i
+.PHONY : pyramid.cpp.i
+
+pyramid.s: pyramid.cpp.s
+.PHONY : pyramid.s
+
+# target to generate assembly for a file
+pyramid.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/pyramid.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/pyramid.cpp.s
+.PHONY : pyramid.cpp.s
+
+saliency.o: saliency.cpp.o
+.PHONY : saliency.o
+
+# target to build an object file
+saliency.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/saliency.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/saliency.cpp.o
+.PHONY : saliency.cpp.o
+
+saliency.i: saliency.cpp.i
+.PHONY : saliency.i
+
+# target to preprocess a source file
+saliency.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/saliency.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/saliency.cpp.i
+.PHONY : saliency.cpp.i
+
+saliency.s: saliency.cpp.s
+.PHONY : saliency.s
+
+# target to generate assembly for a file
+saliency.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/saliency.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/saliency.cpp.s
+.PHONY : saliency.cpp.s
+
+segment.o: segment.cpp.o
+.PHONY : segment.o
+
+# target to build an object file
+segment.cpp.o:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/segment.cpp.o
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/segment.cpp.o
+.PHONY : segment.cpp.o
+
+segment.i: segment.cpp.i
+.PHONY : segment.i
+
+# target to preprocess a source file
+segment.cpp.i:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/segment.cpp.i
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/segment.cpp.i
+.PHONY : segment.cpp.i
+
+segment.s: segment.cpp.s
+.PHONY : segment.s
+
+# target to generate assembly for a file
+segment.cpp.s:
+	$(MAKE) -f CMakeFiles/FreenectDriver.dir/build.make CMakeFiles/FreenectDriver.dir/segment.cpp.s
+	$(MAKE) -f CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/build.make CMakeFiles/Salient_Region_Detection_With_Convex_Hull_Overlap_Cue.dir/segment.cpp.s
+.PHONY : segment.cpp.s
 
 # Help Target
 help:
@@ -161,13 +350,34 @@ help:
 	@echo "... all (the default if no target is provided)"
 	@echo "... clean"
 	@echo "... depend"
-	@echo "... Covering_Hierarchy_For_Video_Retargeting"
 	@echo "... FreenectDriver"
+	@echo "... Salient_Region_Detection_With_Convex_Hull_Overlap_Cue"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... comman.o"
+	@echo "... comman.i"
+	@echo "... comman.s"
+	@echo "... cutobj.o"
+	@echo "... cutobj.i"
+	@echo "... cutobj.s"
+	@echo "... evaluate.o"
+	@echo "... evaluate.i"
+	@echo "... evaluate.s"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... ncut.o"
+	@echo "... ncut.i"
+	@echo "... ncut.s"
+	@echo "... pyramid.o"
+	@echo "... pyramid.i"
+	@echo "... pyramid.s"
+	@echo "... saliency.o"
+	@echo "... saliency.i"
+	@echo "... saliency.s"
+	@echo "... segment.o"
+	@echo "... segment.i"
+	@echo "... segment.s"
 .PHONY : help
 
 

@@ -9,21 +9,22 @@ int main(int args, char **argv) {
 
 #ifdef EVALUATE_MASK
 	//compMaskOthers_1K();
-	compMaskOthers_10K();
+	//compMaskOthers_10K();
+	compResults_10K();
 	return 0;
 #endif
 
 	int st_time = clock();
 
 	char dirName[100];
-	sprintf(dirName, "test/MSRA10K/%s", argv[1]);
+	sprintf(dirName, "test/MSRA1K/%s", argv[1]);
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	const char *GTDir = "test/MSRA10K/GT";
+	const char *GTDir = "test/MSRA1K/GT";
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, GTDir);
 
@@ -32,11 +33,10 @@ int main(int args, char **argv) {
 	int fileNum = 0;
 
 	const int test_num1 = 1;
-	const int test_num2 = 2;
+	const int test_num2 = 1;
 	vector<double> precision_param(test_num1 * test_num2, 0);
 	vector<double> recall_param(test_num1 * test_num2, 0);
-	double PARAM_SET1[test_num1] = {0.5};
-	int PARAM_SET2[test_num2] = {70, 75};
+	int PARAM_SET2[test_num2] = {70};
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
@@ -67,46 +67,44 @@ int main(int args, char **argv) {
 			vector<Vec3f> regionColor;
 			getRegionColor(regionColor, regionCount[pyramidIdx], pyramidRegion[pyramidIdx], LABImg);
 			char pyramidRegionName[100];
-			sprintf(pyramidRegionName, "Pyramid_Color_%d.png", pyramidIdx);
+			sprintf(pyramidRegionName, "debug_output/Pyramid_Color_%d.png", pyramidIdx);
 			writeRegionImageRepresent(pyramidRegion[pyramidIdx], regionColor, pyramidRegionName, 0, 1);
 		}
 #endif
-		for (int param1 = 0; param1 < test_num1; param1++) {
 
-			Mat saliencyMap;
-			getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg, PARAM_SET1[param1]);
+		Mat saliencyMap;
+		getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg);
 
 #ifdef SAVE_SALIENCY
-			int len = strlen(testFile->d_name);
-			string str = string(testFile->d_name).substr(0, len-4);
-			str = "Saliency_10K2/" + str + "_CHO.png";
-			imwrite(str, saliencyMap);
+		int len = strlen(testFile->d_name);
+		string str = string(testFile->d_name).substr(0, len-4);
+		str = "test/MSRA10K/MIX_Cue/" + str + "_CHO.png";
+		imwrite(str, saliencyMap);
+
+		continue;
+
 #endif
-			for (int param2 = 0; param2 < test_num2; param2++) {
+		for (int param2 = 0; param2 < test_num2; param2++) {
 
-				Mat saliencyObj;
-				getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
-//				imshow("saliencyMap", saliencyMap);
-//				imshow("obj", saliencyObj);
-//				imshow("mask", binaryMask[imgId]);
+			Mat saliencyObj;
+			//getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
+			threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
 
-				//threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
+			int paramIdx = param2;
+			double tmp_precision = precision_param[paramIdx];
+			double tmp_recall = recall_param[paramIdx];
 
-				int paramIdx = param1 * test_num2 + param2;
-				double tmp_precision = precision_param[paramIdx];
-				double tmp_recall = recall_param[paramIdx];
+			evaluateMap(precision_param[paramIdx], recall_param[paramIdx], binaryMask[imgId], saliencyObj);
 
-				evaluateMap(precision_param[paramIdx], recall_param[paramIdx], binaryMask[imgId], saliencyObj);
+			tmp_precision = precision_param[paramIdx] - tmp_precision;
+			tmp_recall = recall_param[paramIdx] - tmp_recall;
 
-				tmp_precision = precision_param[paramIdx] - tmp_precision;
-				tmp_recall = recall_param[paramIdx] - tmp_recall;
+			printf("cur %lf %lf total %lf %lf",
+				   tmp_precision, tmp_recall,
+				   precision_param[paramIdx] / fileNum, recall_param[paramIdx] / fileNum);
 
-				printf("cur %lf %lf total %lf %lf",
-					   tmp_precision, tmp_recall,
-					   precision_param[paramIdx] / fileNum, recall_param[paramIdx] / fileNum);
-
-				cout << endl;
-//				waitKey();
+			cout << endl;
+//			waitKey();
 
 #ifdef POS_NEG_RESULT_OUTPUT
 			Mat tmpMap;
@@ -135,7 +133,7 @@ int main(int args, char **argv) {
 			//sprintf(fileName, "test/result/%s", testFile->d_name);
 			if (tmp_precision < 0.8 || tmp_recall < 0.8)
 				imwrite(fileName, resultMap);
-			imwrite("Result_Image.png", resultMap);
+			imwrite("debug_output/Result_Image.png", resultMap);
 			imshow("Result_Image.png", resultMap);
 
 			if (tmp_precision < 0.8 || tmp_recall < 0.8) {
@@ -147,7 +145,6 @@ int main(int args, char **argv) {
 #ifdef SHOW_IMAGE
 			waitKey(0);
 #endif
-			}
 		}
 	}
 
@@ -159,12 +156,12 @@ int main(int args, char **argv) {
 			double a = precision_param[paramIdx] / fileNum;
 			double b = recall_param[paramIdx] / fileNum;
 			double c = (1 + 0.3) * a * b / (0.3 * a + b);
-			printf("%.2lf %03d : %lf\t%lf\t%lf", PARAM_SET1[param1], PARAM_SET2[param2], a, b, c);
+			printf("%03d : %lf\t%lf\t%lf", PARAM_SET2[param2], a, b, c);
 			cout << endl;
 		}
 	}
 
-	cout << (clock() - st_time) / 3600000.0 << endl;
+	cout << (clock() - st_time) / 1000.0 << endl;
 
 	return 0;
 
