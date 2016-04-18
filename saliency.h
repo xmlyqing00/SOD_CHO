@@ -3,6 +3,7 @@
 
 #include "comman.h"
 #include "type_que.h"
+#include "type_region.h"
 
 void getOverlap(vector<int> &regionOverlap, const Mat &curRegionMap, const int &curIdx, const Mat &baseRegionMap, const Mat &convexMap);
 
@@ -18,12 +19,12 @@ void updateMixContrast(Mat &_saliencyMap, const Mat &pixelRegion, const int regi
 
 void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, const int regionCount);
 
-void quantizeColorSpace(Mat &colorMap, vector<Vec3f> &platte, const Mat &colorImg);
+void quantizeColorSpace(Mat &colorMap, vector<Vec3f> &platte, const Mat &paletteDist, const Mat &colorImg);
 
 void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg);
 
 void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount);
 
-void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion, const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg);
+void calcSaliencyMap(Mat &saliencyMap, vector<TypeRegionSet> &multiLayerModel, const Mat &LABImg);
 
 #endif // SALIENCY_H

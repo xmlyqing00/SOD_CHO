@@ -1,6 +1,12 @@
 #include "comman.h"
 
-bool cmpTypeEdge(const TypeEdge &e1, const TypeEdge &e2) {
+Mat paletteDist;
+
+bool cmpTypeEdgePts(const TypeEdgePts &e1, const TypeEdgePts &e2) {
+	return e1.w < e2.w;
+}
+
+bool cmpTypeEdgeNodes(const TypeEdgeNodes &e1, const TypeEdgeNodes &e2) {
 	return e1.w < e2.w;
 }
 
@@ -27,6 +33,13 @@ bool isOutside( int x, int y, int boundX, int boundY ) {
 
 }
 
+bool isOutside(Point p, Size size) {
+
+	if ( p.x < 0 || p.y < 0 || p.x >= size.width || p.y >= size.height ) return true;
+	return false;
+
+}
+
 int float2sign(const double &f) {
 	return (f < -FLOAT_EPS) ? -1 : (f > FLOAT_EPS);
 }
@@ -41,9 +54,133 @@ double colorDiff(const Vec3f &p0, const Vec3f &p1) {
 
 }
 
-int getPointDist(const Point &p0, const Point &p1) {
+double ptsDist(const Point &p0, const Point &p1) {
 
-	return cvRound(sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y)));
+	return sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y));
+}
+
+void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colorImg) {
+
+	Size imgSize = colorImg.size();
+
+	paletteMap = Mat(imgSize, CV_8UC1);
+
+	vector<TypeColorSpace> colorSet;
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			colorSet.push_back(TypeColorSpace(Point(x,y), colorImg.ptr<Vec3f>(y)[x]));
+		}
+	}
+
+	vector< vector<TypeColorSpace> > medianCutQue;
+	medianCutQue.push_back(colorSet);
+
+	for (int level = 0; level < QUANTIZE_LEVEL; level++) {
+
+		vector< vector<TypeColorSpace> > tmpQue;
+
+		for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+			Vec3f minColor(255, 255, 255);
+			Vec3f maxColor(0, 0, 0);
+			for (size_t j = 0; j < medianCutQue[i].size(); j++) {
+				for (int k = 0; k < 3; k++) {
+					minColor.val[k] = min(minColor.val[k], medianCutQue[i][j].color[k]);
+					maxColor.val[k] = max(maxColor.val[k], medianCutQue[i][j].color[k]);
+				}
+			}
+
+			int cut_dimension = 0;
+			double max_range = 0;
+			for (int k = 0; k < 3; k++) {
+				if (maxColor.val[k] - minColor.val[k] > max_range) {
+					max_range = maxColor.val[k] - minColor.val[k];
+					cut_dimension = k;
+				}
+			}
+
+			switch (cut_dimension) {
+			case 0:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor0);
+				break;
+			case 1:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor1);
+				break;
+			case 2:
+				sort(medianCutQue[i].begin(), medianCutQue[i].end(), cmpColor2);
+				break;
+			default:
+				cout << "error in cut" << endl;
+				exit(0);
+			}
+
+			int mid_pos = medianCutQue[i].size() / 2;
+			vector<TypeColorSpace> part0(medianCutQue[i].begin(), medianCutQue[i].begin() + mid_pos);
+			vector<TypeColorSpace> part1(medianCutQue[i].begin() + mid_pos, medianCutQue[i].end());
+
+			tmpQue.push_back(part0);
+			tmpQue.push_back(part1);
+		}
+
+		medianCutQue = tmpQue;
+	}
+
+	for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+		Vec3f meanColor = Vec3f(medianCutQue[i][medianCutQue[i].size()>>1].color);
+		palette.push_back(meanColor);
+	}
+
+	int range = int(0.1 * palette.size());
+	for (size_t i = 0; i < medianCutQue.size(); i++) {
+
+		for (size_t j = 0; j < medianCutQue[i].size(); j++) {
+
+			Vec3f c = Vec3f(medianCutQue[i][j].color);
+
+			size_t best_fit = i;
+			double min_diff = INF;
+			for (int k = 0; k < range; k++) {
+
+				int tmpIdx = i + k;
+				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
+				double tmp = colorDiff(c, palette[tmpIdx]);
+				if (tmp < min_diff) {
+					min_diff = tmp;
+					best_fit = tmpIdx;
+				}
+
+				tmpIdx = i - k;
+				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
+				tmp = colorDiff(c, palette[tmpIdx]);
+				if (tmp < min_diff) {
+					min_diff = tmp;
+					best_fit = tmpIdx;
+				}
+			}
+			paletteMap.at<uchar>(medianCutQue[i][j].pos) = best_fit;
+		}
+	}
+
+	paletteDist = Mat(palette.size(), palette.size(), CV_64FC1, Scalar(0));
+
+	for (size_t c1 = 0; c1 < palette.size(); c1++) {
+		for (size_t c2 = c1 + 1; c2 < palette.size(); c2++) {
+			paletteDist.ptr<double>(c1)[c2] = colorDiff(palette[c1], palette[c2]);
+			paletteDist.ptr<double>(c2)[c1] = paletteDist.ptr<double>(c1)[c2];
+		}
+	}
+
+	Mat quantizeMap(imgSize, CV_32FC3);
+	for (int y = 0; y < imgSize.height; y++) {
+		for (int x = 0; x < imgSize.width; x++) {
+			quantizeMap.ptr<Vec3f>(y)[x] = palette[paletteMap.ptr<uchar>(y)[x]];
+		}
+	}
+
+	cvtColor(quantizeMap, quantizeMap, COLOR_Lab2BGR);
+	quantizeMap.convertTo(quantizeMap, CV_8UC3, 255);
+	imwrite("debug_output/Quantize Image.png", quantizeMap);
 }
 
 void getRegionColor(vector<Vec3f> &regionColor, const int &regionCount,
@@ -192,14 +329,15 @@ void init() {
 void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 
 	inputImg = imread( imgName );
+	inputImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 #ifdef SHOW_IMAGE
 	imwrite("debug_output/Input_Image.jpg", inputImg);
 #endif
-	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
-#ifdef SHOW_IMAGE
-	imwrite("debug_output/Input_Image_Resize.png", tmpImg);
-#endif
-	GaussianBlur(tmpImg, tmpImg, Size(), 0.5, 0, BORDER_REPLICATE);
+	Mat tmpImg;
+	medianBlur(inputImg, tmpImg, 3);
+
+	tmpImg.convertTo(tmpImg, CV_32FC3, 1.0 / 255);
+	cvtColor(tmpImg, LABImg, COLOR_BGR2Lab);
 
 //	cvtColor(tmpImg, tmpImg, COLOR_BGR2YCrCb);
 //	Mat channels[3];
@@ -209,51 +347,8 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 //	cvtColor(tmpImg, tmpImg, COLOR_YCrCb2BGR);
 //	imshow("equa", tmpImg);
 
-	tmpImg.convertTo(tmpImg, CV_32FC3, 1.0 / 255);
-	cvtColor(tmpImg, LABImg, COLOR_BGR2Lab);
-
 }
 
-void writeRegionImageRandom( const int regionCount, const Mat &pixelRegion, const char *imgName,
-							 const int showFlag, const int writeFlag) {
-
-	srand( clock() );
-	Mat regionImg = Mat::zeros( pixelRegion.size(), CV_8UC3 );
-	vector<Vec3b> color;
-	for ( int i = 0; i < regionCount; i++ ) {
-
-		uchar t0 = rand() * 255;
-		uchar t1 = rand() * 255;
-		uchar t2 = rand() * 255;
-		color.push_back( Vec3b( t0, t1, t2 ) );
-	}
-
-	for ( int y = 0; y < pixelRegion.rows; y++ ) {
-		for ( int x = 0; x < pixelRegion.cols; x++ ) {
-			int idx = pixelRegion.ptr<int>(y)[x];
-			if (idx != -1) regionImg.ptr<Vec3b>(y)[x] = color[idx];
-		}
-	}
-
-	if (showFlag) imshow(imgName, regionImg);
-	if (writeFlag) imwrite(imgName, regionImg);
-}
-
-void writeRegionImageRepresent(const Mat &pixelRegion, const vector<Vec3f> &regionColor,
-							   const char *imgName, const int showFlag, const int writeFlag) {
-
-	Mat regionImg = Mat::zeros( pixelRegion.size(), CV_32FC3 );
-	for ( int y = 0; y < pixelRegion.rows; y++ ) {
-		for ( int x = 0; x < pixelRegion.cols; x++ ) {
-			int idx = pixelRegion.ptr<int>(y)[x];
-			regionImg.ptr<Vec3f>(y)[x] = regionColor[idx];
-		}
-	}
-	cvtColor(regionImg, regionImg, COLOR_Lab2BGR);
-	regionImg.convertTo(regionImg, CV_8UC3, 255);
-	if (showFlag) imshow(imgName, regionImg);
-	if (writeFlag) imwrite(imgName, regionImg);
-}
 
 void initTransparentImage(Mat &img) {
 
