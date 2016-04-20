@@ -27,8 +27,14 @@ public:
 	Mat img2region;
 	int regionCount;
 	vector<TypeRegion> regions;
-	vector<double> CHO;
 
+	vector<float> CHO;
+	Mat CHOMap;
+
+	vector<float> contrast;
+	Mat contrastMap;
+
+	bool mergeEnd;
 	Mat regionsDist, regionsColorDiff, regionsW;
 
 	TypeRegionSet(const Size &_imgSize, const int _layerId);
@@ -41,9 +47,13 @@ public:
 
 	void mergeRegions();
 
-	void writeRegionImage(const char *imgName, const bool &showFlag);
+	void writeRegionImage(const bool showFlag = 0) const;
 
-	void debugRegionImage(const char *imgName, const int u, const int v, const bool &writeFlag);
+	void writeCHOMap(const bool showFlag = 0) const;
+
+	void writeContrastMap(const bool showFlag = 0) const;
+
+	void debugRegionImage(const int u, const int v, const bool writeFlag = 0) const;
 
 };
 

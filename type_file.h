@@ -7,27 +7,34 @@ class TypeFile {
 
 private:
 	char folderName[100];
+	char folderNamePrefix[100];
 	DIR *directory[2];
 	dirent *file[2];
 
 public:
 
+	int count[2];
+
 	TypeFile(char *_folderName) {
-		sprintf(folderName, "test/%s/", _folderName);
+		sprintf(folderNamePrefix, "test/%s/", _folderName);
 		for (int i = 0; i < 2; i++) {
 			directory[i] = NULL;
 			file[i] = NULL;
+			count[i] = 0;
 		}
 	}
 
 	char* getNextFileName(const int folderTag) { // 0 : input | 1 : groundtruth
 
+		strcpy(folderName, folderNamePrefix);
 		switch (folderTag) {
 		case 0:
 			strcat(folderName, "input/");
+			count[folderTag]++;
 			break;
 		case 1:
 			strcat(folderName, "groundtruth/");
+			count[folderTag]++;
 			break;
 		default:
 			cout << "error in getNextFileName";

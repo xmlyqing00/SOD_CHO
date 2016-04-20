@@ -4,9 +4,9 @@
 #include "comman.h"
 #include "type_file.h"
 
-void getGroundTruth(map<string,Mat> &binaryMask, const TypeFile *fileSet);
+void getGroundTruth(map<string, Mat> &binaryMask, TypeFile &fileSet);
 
-bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap);
+void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap);
 
 void compMaskOthers_1K();
 

@@ -3,7 +3,7 @@
 double calcRegionsDist(const TypeRegion &r0, const TypeRegion &r1) {
 
 	double dist = ptsDist(r0.centerPos, r1.centerPos);
-	dist += max(r0.avgRadius, r1.avgRadius);
+	dist += 0.5 * (r0.avgRadius + r1.avgRadius);
 	return exp(-dist / SIGMA_DIST);
 }
 
@@ -18,7 +18,7 @@ double calcRegionsColorDiff(const TypeRegion &r0, const TypeRegion &r1) {
 		for (size_t c2 = 0; c2 < r1.colorHist.size(); c2++) {
 
 			if (r1.colorHist[c2] == 0) continue;
-			tmpDiff += paletteDist.ptr<double>(c1)[c2] * r1.colorHist[c2];
+			tmpDiff += paletteDist.ptr<float>(c1)[c2] * r1.colorHist[c2];
 		}
 		colorDiff += r0.colorHist[c1] * tmpDiff / r1.ptsCount;
 
@@ -72,10 +72,13 @@ TypeRegion::TypeRegion(const TypeRegion &r0, const TypeRegion &r1) {
 TypeRegionSet::TypeRegionSet(const Size &_imgSize, const int _layerId) {
 	imgSize = _imgSize;
 	img2region = Mat(imgSize, CV_32SC1, Scalar(-1));
-	regionsW = Mat(imgSize, CV_64FC1, Scalar(0));
+	regionsW = Mat(imgSize, CV_32FC1, Scalar(0));
+	CHOMap = Mat(imgSize, CV_32FC1, Scalar(0));
+	contrastMap = Mat(imgSize, CV_32FC1, Scalar(0));
 	regions.clear();
 	regionCount = 0;
 	layerId = _layerId;
+	mergeEnd = false;
 }
 
 void TypeRegionSet::calcRegionsAttr(const Mat &paletteMap) {
@@ -125,11 +128,17 @@ void TypeRegionSet::calcRegionsAttr(const Mat &paletteMap) {
 
 	}
 
-	CHO = vector<double>(regionCount, 0);
+	CHO = vector<float>(regionCount, 0);
+	contrast = vector<float>(regionCount, 0);
 
 }
 
 void TypeRegionSet::calcRegionsAttrAfterMerge() {
+
+	img2region = Mat(imgSize, CV_32SC1, Scalar(-1));
+	regionsW = Mat(imgSize, CV_32FC1, Scalar(0));
+	CHOMap = Mat(imgSize, CV_32FC1, Scalar(0));
+	contrastMap = Mat(imgSize, CV_32FC1, Scalar(0));
 
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = 0; j < regions[i].ptsCount; j++) {
@@ -155,22 +164,23 @@ void TypeRegionSet::calcRegionsAttrAfterMerge() {
 		}
 	}
 
-	CHO = vector<double>(regionCount, 0);
+	CHO = vector<float>(regionCount, 0);
+	contrast = vector<float>(regionCount, 0);
 	layerId++;
 
 }
 
 void TypeRegionSet::calcRegionsWAll() {
 
-	Mat regionsDist(regionCount, regionCount, CV_64FC1, Scalar(0));
-	Mat regionsColorDiff(regionCount, regionCount, CV_64FC1, Scalar(0));
+	Mat regionsDist(regionCount, regionCount, CV_32FC1, Scalar(0));
+	Mat regionsColorDiff(regionCount, regionCount, CV_32FC1, Scalar(0));
 
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			regionsDist.ptr<double>(i)[j] = calcRegionsDist(regions[i], regions[j]);
-			regionsColorDiff.ptr<double>(i)[j] = calcRegionsColorDiff(regions[i], regions[j]);
+			regionsDist.ptr<float>(i)[j] = calcRegionsDist(regions[i], regions[j]);
+			regionsColorDiff.ptr<float>(i)[j] = calcRegionsColorDiff(regions[i], regions[j]);
 
-//			printf("%d %d dist %.2lf color %.2lf", i, j, regionsDist.ptr<double>(i)[j], regionsColorDiff.ptr<double>(i)[j]);
+//			printf("%d %d dist %.2lf color %.2lf", i, j, regionsDist.ptr<float>(i)[j], regionsColorDiff.ptr<float>(i)[j]);
 //			cout << endl;
 		}
 
@@ -180,7 +190,7 @@ void TypeRegionSet::calcRegionsWAll() {
 
 //	for (int i = 0; i < regionCount; i++) {
 //		for (int j = i + 1; j < regionCount; j++) {
-//			printf("%d %d w %.2lf\n", i, j, regionsW.ptr<double>(i)[j]);
+//			printf("%d %d w %.2lf\n", i, j, regionsW.ptr<float>(i)[j]);
 //		}
 //	}
 }
@@ -193,7 +203,7 @@ void TypeRegionSet::mergeRegions() {
 
 	for (int i = 0; i < regionCount; i++) {
 		for (int j = i + 1; j < regionCount; j++) {
-			mergeQueue.push(TypeEdgeNodes(i, j, regionsW.ptr<double>(i)[j]));
+			mergeQueue.push(TypeEdgeNodes(i, j, regionsW.ptr<float>(i)[j]));
 		}
 	}
 
@@ -208,6 +218,12 @@ void TypeRegionSet::mergeRegions() {
 		while (!regionExist[curEdge.u] || !regionExist[curEdge.v]) {
 			curEdge = mergeQueue.top();
 			mergeQueue.pop();
+		}
+
+		//cout << curEdge.w << " ";
+		if (curEdge.w < MERGE_THRESHOLD) {
+			mergeEnd = true;
+			break;
 		}
 
 		regionExist[curEdge.u] = false;
@@ -238,14 +254,18 @@ void TypeRegionSet::mergeRegions() {
 
 	regionCount = new_regionCount;
 	regions.resize(regionCount);
+	if (regionCount <= 2) mergeEnd = true;
 
 	calcRegionsAttrAfterMerge();
 
 }
 
-void TypeRegionSet::writeRegionImage(const char *imgName, const bool &showFlag) {
+void TypeRegionSet::writeRegionImage(const bool showFlag) const {
 
-	srand( clock() );
+	char imgName[100];
+	sprintf(imgName, "debug_output/Segment_Image_%d.png", layerId);
+
+	srand(clock());
 	Mat regionImg = Mat::zeros(imgSize, CV_8UC3 );
 	vector<Vec3b> color;
 	for ( int i = 0; i < regionCount; i++ ) {
@@ -263,11 +283,51 @@ void TypeRegionSet::writeRegionImage(const char *imgName, const bool &showFlag) 
 	}
 
 	imwrite(imgName, regionImg);
-	if (showFlag) imshow(imgName, regionImg);
+	if (showFlag) {
+		imshow(imgName, regionImg);
+		waitKey();
+	}
 
 }
 
-void TypeRegionSet::debugRegionImage(const char *imgName, const int u, const int v, const bool &writeFlag) {
+void TypeRegionSet::writeCHOMap(const bool showFlag) const {
+
+	char imgName[100];
+	sprintf(imgName, "debug_output/CHO_Image_%d.png", layerId);
+
+	Mat tmpImg;
+	normalize(CHOMap, tmpImg, 0, 1, CV_MINMAX);
+	tmpImg.convertTo(tmpImg, CV_8UC1, 255);
+
+	imwrite(imgName, tmpImg);
+	if (showFlag) {
+		imshow(imgName, tmpImg);
+		waitKey(0);
+	}
+
+}
+
+void TypeRegionSet::writeContrastMap(const bool showFlag) const {
+
+	char imgName[100];
+	sprintf(imgName, "debug_output/Contrast_Image_%d.png", layerId);
+
+	Mat tmpImg;
+	normalize(contrastMap, tmpImg, 0, 1, CV_MINMAX);
+	tmpImg.convertTo(tmpImg, CV_8UC1, 255);
+
+	imwrite(imgName, tmpImg);
+	if (showFlag) {
+		imshow(imgName, tmpImg);
+		waitKey(0);
+	}
+
+}
+
+void TypeRegionSet::debugRegionImage(const int u, const int v, const bool writeFlag) const {
+
+	char imgName[100];
+	sprintf(imgName, "debug_output/Segment_Image_%d.png", layerId);
 
 	srand( clock() );
 	Mat regionImg = Mat::zeros(imgSize, CV_8UC3 );
@@ -291,5 +351,6 @@ void TypeRegionSet::debugRegionImage(const char *imgName, const int u, const int
 
 	imshow(imgName, regionImg);
 	if (writeFlag) imwrite(imgName, regionImg);
+	waitKey();
 
 }

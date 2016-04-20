@@ -26,7 +26,7 @@ void overSegmentation(TypeRegionSet &regionSet, const Mat &LABImg) {
 
 				Vec3f nowColor = LABImg.ptr<Vec3f>(nowP.y)[nowP.x];
 				Vec3f newColor = LABImg.ptr<Vec3f>(newP.y)[newP.x];
-				double diff = colorDiff(nowColor, newColor);
+				double diff = calcVec3fDiff(nowColor, newColor);
 				edges.push_back(TypeEdgePts(nowP, newP, diff));
 			}
 		}
@@ -104,7 +104,7 @@ void overSegmentation(TypeRegionSet &regionSet, const Mat &LABImg) {
 	//cout << regionSet.regionCount << endl;
 
 #ifdef SHOW_IMAGE
-	regionSet.writeRegionImage("debug_output/Segment_Image_0.png", 1);
+	regionSet.writeRegionImage();
 #endif
 
 }
@@ -120,16 +120,13 @@ void buildMultiLayerModel(vector<TypeRegionSet> &multiLayerModel, const Mat &pal
 
 	multiLayerModel.push_back(regionSet);
 
-	while (regionSet.regionCount > 3) {
+	while (!regionSet.mergeEnd) {
 
 		regionSet.mergeRegions();
 		multiLayerModel.push_back(regionSet);
 
 #ifdef SHOW_IMAGE
-		char imgName[100];
-		sprintf(imgName, "debug_output/Segment_Image_%d.png", regionSet.layerId);
-		regionSet.writeRegionImage(imgName, 1);
-		waitKey(0);
+		regionSet.writeRegionImage(0);
 #endif
 
 	}

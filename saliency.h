@@ -5,26 +5,22 @@
 #include "type_que.h"
 #include "type_region.h"
 
-void getOverlap(vector<int> &regionOverlap, const Mat &curRegionMap, const int &curIdx, const Mat &baseRegionMap, const Mat &convexMap);
+double calcCenterW(const Point &regionCenter, const Size &imgSize);
 
-void getCenterBias(double &centerBias, const vector<Point> &pts, const Point &midP);
+void calcCHOMap(vector<TypeRegionSet> &multiLayerModel, const Size &imgSize);
 
-void normalizeVecd(vector<double> &vec);
+void calcContrastMap(vector<TypeRegionSet> &multiLayerModel, const Size &imgSize);
+
+void calcSaliencyMap(Mat &saliencyMap, Mat &CHOMap, Mat &contrastMap, const vector<TypeRegionSet> &multiLayerModel);
 
 void getCHODetail(Mat &CHODetailMap, const int &objIdx, const Mat &objPixelRegion, const int &bgIdx, const Mat &bgPixelRegion, const vector<Point> &regionBound, const Mat &LABImg);
 
-void getCHOSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion, const Mat &LABImg);
+void calcBorderMap(Mat &borderMap, const vector<TypeRegionSet> &multiLayerModel);
 
-void updateMixContrast(Mat &_saliencyMap, const Mat &pixelRegion, const int regionCount, const Mat &LABImg);
+void updateColorSmooth(Mat &saliencyMap, const Mat &paletteMap);
 
-void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, const int regionCount);
+void updateRegionSmooth(Mat &saliencyMap, const vector<TypeRegionSet> &multiLayerModel);
 
-void quantizeColorSpace(Mat &colorMap, vector<Vec3f> &platte, const Mat &paletteDist, const Mat &colorImg);
-
-void updateColorSmooth(Mat &saliencyMap, const Mat &LABImg);
-
-void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regionCount);
-
-void calcSaliencyMap(Mat &saliencyMap, vector<TypeRegionSet> &multiLayerModel, const Mat &LABImg);
+void getSaliencyMap(Mat &saliencyMap, vector<TypeRegionSet> &multiLayerModel, const Mat &LABImg);
 
 #endif // SALIENCY_H

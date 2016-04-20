@@ -38,11 +38,13 @@ const double FLOAT_EPS = 1e-8;
 
 const int MIN_REGION_SIZE = 200; // 200
 const int SEGMENT_THRESHOLD = 50; // 80
-const int SIGMA_DIST = 300;
-const int SIGMA_COLOR = 1;
+const int SIGMA_DIST = 200;
+const int SIGMA_COLOR = 10;
+const double MERGE_THRESHOLD = 0.02;
 const int QUANTIZE_LEVEL = 5;
 const int PIXEL_CONNECT = 8;
 const int CROP_WIDTH = 8;
+const int BORDER_WIDTH = 8;
 
 const double BORDER_REGION = 0.1;
 const int SALIENCY_THRESHOLD = 70;
@@ -122,19 +124,16 @@ void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &platte, const Mat &color
 
 int float2sign(const double &f);
 
+double calcVec3fDiff(const Vec3f &p0, const Vec3f &p1);
+
+void normalizeVecf(vector<float> &vec);
+
 int hashVec3b(const Vec3b &v);
 
 void initTransparentImage(Mat &img);
 
-void init();
-
-double colorDiff(const Vec3f &p0, const Vec3f &p1);
-
 double ptsDist(const Point &p0, const Point &p1);
 
-void getRegionColor(vector<Vec3f> &regionColor, const int &regionCount,	const Mat &pixelRegion, const Mat &LABImg);
-void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount);
-void getRegionElement( vector<Point> *regionElement, int *regionElementCount, const Mat &pixelRegion);
 int getElementHead( int u, int *head );
 
 void readImage( const char *imgName, Mat &inputImg, Mat &LABImg );

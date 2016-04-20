@@ -10,33 +10,29 @@ void getGroundTruth(map<string,Mat> &binaryMask, TypeFile &fileSet) {
 	while ((fileName = fileSet.getNextFileName(FILE_GROUNDTRUTH)) != NULL) {
 
 		Mat maskMat = imread(fileName, 0);
+		maskMat = maskMat(Rect(CROP_WIDTH, CROP_WIDTH, maskMat.cols-2*CROP_WIDTH, maskMat.rows-2*CROP_WIDTH)).clone();
 		string str(fileName);
-		str = str.substr(0, str.length()-4);
+
+		int str_st = str.find_last_of('/');
+		int str_ed = str.find_last_of('.');
+		str = str.substr(str_st + 1, str_ed - str_st - 1);
 		binaryMask[str] = maskMat;
 	}
 }
 
-bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
+void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
 
-	double tmp_precision, tmp_recall;
-
 	if (area_saliency > 0) {
-		tmp_precision = (double)(area_intersection) / area_saliency;
-		tmp_recall = (double)(area_intersection) / area_mask;
+		precision = (double)(area_intersection) / area_saliency;
+		recall = (double)(area_intersection) / area_mask;
 	} else {
-		tmp_precision = 0;
-		tmp_recall = 0;
+		precision = 0;
+		recall = 0;
 	}
-
-	precision += tmp_precision;
-	recall += tmp_recall;
-
-	if (tmp_precision < 0.8) return false;
-		else return true;
 
 }
 

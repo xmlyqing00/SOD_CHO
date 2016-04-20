@@ -3,8 +3,8 @@
 #include "type_file.h"
 #include "multilayer.h"
 #include "saliency.h"
+#include "evaluate.h"
 //#include "cutobj.h"
-//#include "evaluate.h"
 
 int main(int args, char **argv) {
 
@@ -18,10 +18,12 @@ int main(int args, char **argv) {
 	int st_time = clock();
 
 	TypeFile fileSet(argv[1]);
-	//map<string, Mat> binaryMask;
-	//getGroundTruth(binaryMask, fileSet);
+	map<string, Mat> binaryMask;
+	getGroundTruth(binaryMask, fileSet);
 
 	char *inputFileName;
+	double avgPrecision = 0, avgRecall = 0;
+
 	while ((inputFileName = fileSet.getNextFileName(FILE_INPUT)) != NULL) {
 
 		Mat inputImg, LABImg;
@@ -35,8 +37,30 @@ int main(int args, char **argv) {
 		buildMultiLayerModel(multiLayerModel, paletteMap, LABImg);
 
 		Mat saliencyMap;
-		calcSaliencyMap(saliencyMap, multiLayerModel, LABImg);
+		getSaliencyMap(saliencyMap, multiLayerModel, paletteMap);
 
+		Mat salientRegions;
+		saliencyMap.convertTo(salientRegions, CV_8UC1, 255);
+		threshold(salientRegions, salientRegions, 250, 255, THRESH_BINARY);
+
+		string imgId(inputFileName);
+		int str_st = imgId.find_last_of('/');
+		int str_ed = imgId.find_last_of('.');
+		imgId = imgId.substr(str_st + 1, str_ed - str_st - 1);
+
+		double precision, recall;
+		evaluateMap(precision, recall, binaryMask[imgId], salientRegions);
+		avgPrecision += precision;
+		avgRecall += recall;
+		printf("%d %.5lf %.5lf %.5lf %.5lf", fileSet.count[FILE_INPUT], precision, recall, avgPrecision/fileSet.count[FILE_INPUT], avgRecall/fileSet.count[FILE_INPUT]);
+		cout << endl;
+
+		string saliencyMapName = "test/MSRA10K/Saliency_CHO/" + imgId + "_CHO.png";
+		imwrite(saliencyMapName, saliencyMap);
+
+		//evaluateMap(precision_param[paramIdx], recall_param[paramIdx], binaryMask[imgId], saliencyObj);
+
+		continue;
 //		for (int param2 = 0; param2 < test_num2; param2++) {
 
 //			Mat saliencyObj;

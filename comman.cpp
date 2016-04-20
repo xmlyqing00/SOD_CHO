@@ -27,36 +27,29 @@ bool cmpSimilarColor(const pair<int,double> &p0, const pair<int,double> &p1) {
 }
 
 bool isOutside( int x, int y, int boundX, int boundY ) {
-
 	if ( x < 0 || y < 0 || x >= boundX || y >= boundY ) return true;
 	return false;
-
 }
 
 bool isOutside(Point p, Size size) {
-
 	if ( p.x < 0 || p.y < 0 || p.x >= size.width || p.y >= size.height ) return true;
 	return false;
-
 }
 
 int float2sign(const double &f) {
 	return (f < -FLOAT_EPS) ? -1 : (f > FLOAT_EPS);
 }
 
-double colorDiff(const Vec3f &p0, const Vec3f &p1) {
-
-	double diffRes = 0;
-	for (int i = 0; i < 3; i++) {
-		diffRes += sqr(p0.val[i] - p1.val[i]);
-	}
-	return sqrt(diffRes);
-
+double ptsDist(const Point &p0, const Point &p1) {
+	return sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y));
 }
 
-double ptsDist(const Point &p0, const Point &p1) {
-
-	return sqrt((p0.x-p1.x)*(p0.x-p1.x) + (p0.y-p1.y)*(p0.y-p1.y));
+double calcVec3fDiff(const Vec3f &p0, const Vec3f &p1) {
+	double diff = 0;
+	for (int i = 0; i < 3; i++) {
+		diff += sqr(p0.val[i] - p1.val[i]);
+	}
+	return sqrt(diff);
 }
 
 void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colorImg) {
@@ -144,7 +137,7 @@ void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colo
 
 				int tmpIdx = i + k;
 				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
-				double tmp = colorDiff(c, palette[tmpIdx]);
+				double tmp = calcVec3fDiff(c, palette[tmpIdx]);
 				if (tmp < min_diff) {
 					min_diff = tmp;
 					best_fit = tmpIdx;
@@ -152,7 +145,7 @@ void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colo
 
 				tmpIdx = i - k;
 				if (tmpIdx < 0 || tmpIdx >= (int)medianCutQue.size()) continue;
-				tmp = colorDiff(c, palette[tmpIdx]);
+				tmp = calcVec3fDiff(c, palette[tmpIdx]);
 				if (tmp < min_diff) {
 					min_diff = tmp;
 					best_fit = tmpIdx;
@@ -162,12 +155,12 @@ void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colo
 		}
 	}
 
-	paletteDist = Mat(palette.size(), palette.size(), CV_64FC1, Scalar(0));
+	paletteDist = Mat(palette.size(), palette.size(), CV_32FC1, Scalar(0));
 
 	for (size_t c1 = 0; c1 < palette.size(); c1++) {
 		for (size_t c2 = c1 + 1; c2 < palette.size(); c2++) {
-			paletteDist.ptr<double>(c1)[c2] = colorDiff(palette[c1], palette[c2]);
-			paletteDist.ptr<double>(c2)[c1] = paletteDist.ptr<double>(c1)[c2];
+			paletteDist.ptr<float>(c1)[c2] = calcVec3fDiff(palette[c1], palette[c2]);
+			paletteDist.ptr<float>(c2)[c1] = paletteDist.ptr<float>(c1)[c2];
 		}
 	}
 
@@ -183,90 +176,19 @@ void quantizeColorSpace(Mat &paletteMap, vector<Vec3f> &palette, const Mat &colo
 	imwrite("debug_output/Quantize Image.png", quantizeMap);
 }
 
-void getRegionColor(vector<Vec3f> &regionColor, const int &regionCount,
-					const Mat &pixelRegion, const Mat &LABImg) {
+void normalizeVecf(vector<float> &vec) {
 
-	regionColor = vector<Vec3f>(regionCount, 0);
-	vector<int> regionSize(regionCount, 0);
-	for (int y = 0; y < pixelRegion.rows; y++) {
-		for (int x = 0; x < pixelRegion.cols; x++) {
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionColor[regionIdx] += LABImg.ptr<Vec3f>(y)[x];
-			regionSize[regionIdx]++;
-		}
-	}
-	for (int i = 0; i < regionCount; i++) {
-		for (int k = 0; k < 3; k++) regionColor[i].val[k] /= regionSize[i];
+	float max_data = 0;
+	float min_data = INF;
+
+	for (size_t i = 0; i < vec.size(); i++) {
+
+		max_data = max(max_data, vec[i]);
+		min_data = min(min_data, vec[i]);
 	}
 
-}
-
-void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCount) {
-
-	vector<Point2d> regionCenter(regionCount, Point2d(0, 0));
-	vector<int> regionSize(regionCount, 0);
-	Size imgSize = pixelRegion.size();
-
-	for (int y = 0; y < imgSize.height; y++) {
-		for (int x = 0; x < imgSize.width; x++) {
-
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			regionCenter[regionIdx] += Point2d(x,y);
-			regionSize[regionIdx]++;
-		}
-	}
-
-	for (int i = 0; i < regionCount; i++) {
-		regionCenter[i].x /= regionSize[i];
-		regionCenter[i].y /= regionSize[i];
-	}
-
-	vector<Point2d> regionBias(regionCount, Point2d(0, 0));
-	for (int y = 0; y < imgSize.height; y++) {
-		for (int x = 0; x < imgSize.width; x++) {
-			int regionIdx = pixelRegion.ptr<int>(y)[x];
-			Point2d tmp = Point2d(x,y) - regionCenter[regionIdx];
-			regionBias[regionIdx] += Point2d(abs(tmp.x), abs(tmp.y));
-		}
-	}
-
-	for (int i = 0; i < regionCount; i++) {
-		regionCenter[i].x /= imgSize.width;
-		regionCenter[i].y /= imgSize.height;
-		regionBias[i].x /= regionSize[i] * imgSize.width;
-		regionBias[i].y /= regionSize[i] * imgSize.height;
-	}
-
-	regionDist = Mat(regionCount, regionCount, CV_64FC1, Scalar(0));
-	for (int i = 0; i < regionCount; i++) {
-		for (int j = i + 1; j < regionCount; j++) {
-			double dx = regionCenter[i].x - regionCenter[j].x;
-			double dy = regionCenter[i].y - regionCenter[j].y;
-			double centerDist = sqrt(sqr(dx) + sqr(dy));
-			double ratioX = abs(dx) / centerDist;
-			double ratioY = abs(dy) / centerDist;
-			double regionVar_i = regionBias[i].x * ratioX + regionBias[i].y * ratioY;
-			double regionVar_j = regionBias[j].x * ratioX + regionBias[j].y * ratioY;
-			regionDist.ptr<double>(i)[j] = max(0.0, centerDist - regionVar_i - regionVar_j);
-			regionDist.ptr<double>(j)[i] = regionDist.ptr<double>(i)[j];
-
-			//printf("dx %lf dy %lf centerDist %lf ratioX %lf ratioY %lf regionVar_i %lf regionVar_j %lf dist %lf",
-				 //  dx, dy, centerDist, ratioX, ratioY, regionVar_i, regionVar_j, regionDist.ptr<double>(i)[j]);
-			//cout << endl;
-		}
-	}
-}
-
-void getRegionElement( vector<Point> *regionElement, int *regionElementCount,
-					   const Mat &pixelRegion) {
-
-	for ( int y = 0; y < pixelRegion.rows; y++ ) {
-		for ( int x = 0; x < pixelRegion.cols; x++ ) {
-
-			int regionIdx = pixelRegion.ptr<int>( y )[x];
-			regionElementCount[regionIdx]++;
-			regionElement[regionIdx].push_back( Point( x, y ) );
-		}
+	for (size_t i = 0; i < vec.size(); i++) {
+		vec[i] = (vec[i] - min_data) / (max_data - min_data);
 	}
 }
 
@@ -291,53 +213,18 @@ Vec3b deHashVec3b(int d) {
 	return v;
 }
 
-void init() {
-
-	pid_t pid;
-
-	pid = fork();
-	if (pid == 0) {
-		// Child process
-		if (execlp("rm", "rm", "-r", "depth", (char*)0) == -1) {
-			perror("SHELL");
-		}
-		exit(0);
-	} else {
-		// Parent process
-		int status;
-		do {
-			waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-	}
-
-	pid = fork();
-	if (pid == 0) {
-		// Child process
-		if (execlp("mkdir", "mkdir", "depth", (char*)0) == -1) {
-			perror("SHELL");
-		}
-		exit(0);
-	} else {
-		// Parent process
-		int status;
-		do {
-			waitpid(pid, &status, WUNTRACED);
-		} while (!WIFEXITED(status) && !WIFSIGNALED(status));
-	}
-}
-
 void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 
 	inputImg = imread( imgName );
-	inputImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
 #ifdef SHOW_IMAGE
 	imwrite("debug_output/Input_Image.jpg", inputImg);
 #endif
-	Mat tmpImg;
-	medianBlur(inputImg, tmpImg, 3);
+	Mat tmpImg = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH)).clone();
+	medianBlur(tmpImg, tmpImg, 3);
 
 	tmpImg.convertTo(tmpImg, CV_32FC3, 1.0 / 255);
 	cvtColor(tmpImg, LABImg, COLOR_BGR2Lab);
+	imshow("Input Image", tmpImg);
 
 //	cvtColor(tmpImg, tmpImg, COLOR_BGR2YCrCb);
 //	Mat channels[3];
@@ -348,7 +235,6 @@ void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
 //	imshow("equa", tmpImg);
 
 }
-
 
 void initTransparentImage(Mat &img) {
 
