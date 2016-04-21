@@ -17,14 +17,14 @@ int main(int args, char **argv) {
 	int st_time = clock();
 
 	char dirName[100];
-	sprintf(dirName, "test/MSRA1K/%s", argv[1]);
+	sprintf(dirName, "test/ECSSD/%s", argv[1]);
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	const char *GTDir = "test/MSRA1K/GT";
+	const char *GTDir = "test/ECSSD/groundtruth";
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, GTDir);
 

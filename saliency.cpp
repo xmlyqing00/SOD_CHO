@@ -600,8 +600,14 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 	imshow("debug_output/S_color", saliencyMap);
 #endif
 
-	saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap_base;
-	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	Mat tmpMap, tmpMap1;
+	saliencyMap.convertTo(tmpMap, CV_32SC1);
+	saliencyMap_base.convertTo(tmpMap1, CV_32SC1);
+	tmpMap = tmpMap.mul(tmpMap1);
+	normalize(tmpMap, tmpMap, 0, 255, CV_MINMAX);
+	tmpMap.convertTo(saliencyMap, CV_8UC1);
+	//saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap_base;
+	//normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
 
 	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);
 #ifdef SHOW_IMAGE
