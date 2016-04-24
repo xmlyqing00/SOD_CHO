@@ -53,36 +53,50 @@ bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 
 }
 
-void compMaskOthers_1K() {
+void benchMark(char *datasetName) {
 
-	FILE *recall_precision_File = fopen("logs/recall_precision.txt", "w");
+	char folderName[100] = "test/";
+	strcat(folderName, datasetName);
+
+	char logName[100];
+	strcpy(logName, folderName);
+	strcat(logName, "/recall_precision.txt");
+	FILE *recall_precision_File = fopen(logName, "w");
 
 	int testNum = 0;
 
+	char groundtruthName[100];
+	strcpy(groundtruthName, folderName);
+	strcat(groundtruthName, "/groundtruth");
 	map<string, Mat> binaryMask;
-	getGroundTruth(binaryMask, "test/binarymask");
+	getGroundTruth(binaryMask, groundtruthName);
 
-	for (int PARAM1 = 250; PARAM1 > 0; PARAM1 -= 5) {
+	map<int, vector<double> > precision, recall, f_measure;
+	map<int, vector<int> > methodCount;
 
-		printf("%d\t%d", testNum, PARAM1);
+	fprintf(recall_precision_File, "Tf=[");
+
+	for (int Tf = 250; Tf >= 0; Tf -= 5) {
+
+		fprintf(recall_precision_File, "%d, ", Tf);
+
+		printf("%d\t%d", testNum, Tf);
 		cout << endl;
 
-		char dirName[100] = "Saliency";
-
-		char fileNameFormat[100];
-		memset(fileNameFormat, 0, sizeof(fileNameFormat));
-		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
-		strcat(fileNameFormat, "/%s");
-
-
+		char dirName[100];
+		strcpy(dirName, folderName);
+		strcat(dirName, "/Saliency");
 
 		DIR *testDir = opendir(dirName);
 		dirent *testFile;
 
-		map<string, double> precision, recall;
-		map<string, int> methodCount;
-
 		int c = 0;
+
+		for (int i = 0; i < 6; i++) {
+			methodCount[i].push_back(0);
+			precision[i].push_back(0);
+			recall[i].push_back(0);
+		}
 
 		while ((testFile = readdir(testDir)) != NULL) {
 
@@ -94,19 +108,33 @@ void compMaskOthers_1K() {
 			string methodStr = str.substr(methodStr_st + 1, methodStr_ed-methodStr_st-1);
 			string imgId = str.substr(0, methodStr_st);
 
-			if (methodStr != "CHO") continue;
-
-			if (methodCount.find(methodStr) == methodCount.end()) {
-				methodCount[methodStr] = 1;
-				precision[methodStr] = 0;
-				recall[methodStr] = 0;
-			} else {
-				methodCount[methodStr]++;
+			int methodId = -1;
+			if (methodStr == "CHO") {
+				methodId = 0;
 			}
+			if (methodStr == "RC") {
+				methodId = 1;
+			}
+			if (methodStr == "HC") {
+				methodId = 2;
+			}
+			if (methodStr == "LC") {
+				methodId = 3;
+			}
+			if (methodStr == "SR") {
+				methodId = 4;
+			}
+			if (methodStr == "FT") {
+				methodId = 5;
+			}
+			methodCount[methodId].back()++;
 
 			c++;
 			//cout << c << " " << testFile->d_name << endl;
 
+			char fileNameFormat[100];
+			strcpy(fileNameFormat, dirName);
+			strcat(fileNameFormat, "/%s");
 			char inputImgName[100];
 			sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
@@ -117,125 +145,49 @@ void compMaskOthers_1K() {
 			} else {
 				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 			}
-			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
+			threshold(saliencyMap, saliencyMap, Tf, 255, THRESH_BINARY);
 
-			evaluateMap(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
-
-		}
-
-		map<string,double>::iterator it;
-		for (it = precision.begin(); it != precision.end(); it++) {
-
-			string methodStr = it->first;
-			double tmp_precision = precision[methodStr] / methodCount[methodStr];
-			double tmp_recall = recall[methodStr] / methodCount[methodStr];
-
-			fprintf(recall_precision_File, "%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
-
-			printf("%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
-			cout << methodStr << endl;
+			evaluateMap(precision[methodId].back(), recall[methodId].back(), binaryMask[imgId], saliencyMap);
 
 		}
-		fprintf(recall_precision_File, "\n");
+
+		for (int k = 0; k < 6; k++) {
+
+			double tmp_precision = precision[k].back() / methodCount[k].back();
+			double tmp_recall = recall[k].back() / methodCount[k].back();
+			double f = (1 + 0.3) * tmp_precision * tmp_recall / (0.3 * tmp_precision + tmp_recall);
+			f_measure[k].push_back(f);
+
+			printf("%.4lf\t%.4lf\t%.4lf ", tmp_recall, tmp_precision, f);
+			cout << endl;
+
+		}
 	}
-	fclose(recall_precision_File);
 
-}
+	fprintf(recall_precision_File, "];\n");
 
-void compMaskOthers_10K() {
+	for (int k = 0; k < 6; k++) {
 
-	FILE *recall_precision_File = fopen("test/MSRA10K/recall_precision_10K_cue.txt", "w");
+		cout << k << endl;
 
-	int testNum = 0;
+		fprintf(recall_precision_File,"precision=[");
+		for (size_t i = 0; i < precision[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", precision[k][i] / methodCount[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
 
-	map<string, Mat> binaryMask;
-	getGroundTruth(binaryMask, "test/MSRA10K/GT");
+		fprintf(recall_precision_File,"recall=[");
+		for (size_t i = 0; i < recall[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", recall[k][i] / methodCount[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
 
-	for (int PARAM1 = 250; PARAM1 >= -5; PARAM1 -= 5) {
-
-		printf("%d\t%d", testNum, PARAM1);
+		fprintf(recall_precision_File,"f=[");
+		for (size_t i = 0; i < f_measure[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", f_measure[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
 		cout << endl;
-
-		char dirName[100] = "test/MSRA10K/Saliency_Cue";
-
-		char fileNameFormat[100];
-		memset(fileNameFormat, 0, sizeof(fileNameFormat));
-		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
-		strcat(fileNameFormat, "/%s");
-
-		DIR *testDir = opendir(dirName);
-		dirent *testFile;
-
-		map<string, double> precision, recall;
-		map<string, int> methodCount;
-
-		int c = 0;
-
-		while ((testFile = readdir(testDir)) != NULL) {
-
-			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
-			string str(testFile->d_name);
-			if (str.find(".jpg") != string::npos) continue;
-			int methodStr_st = str.find_last_of('_');
-			int methodStr_ed = str.find_last_of('.');
-			string methodStr = str.substr(methodStr_st + 1, methodStr_ed-methodStr_st-1);
-			string imgId = str.substr(0, methodStr_st);
-
-//			if (methodStr != "FT" && methodStr != "RC" && methodStr != "SR" && methodStr != "CHO" &&
-//				methodStr != "LC" && methodStr != "CB" && methodStr != "SEG" && methodStr != "HC") {
-//				continue;
-//			}
-
-			if (methodCount.find(methodStr) == methodCount.end()) {
-				methodCount[methodStr] = 1;
-				precision[methodStr] = 0;
-				recall[methodStr] = 0;
-			} else {
-				methodCount[methodStr]++;
-			}
-
-			c++;
-			//cout << c << " " << testFile->d_name << endl;
-
-			char inputImgName[100];
-			sprintf(inputImgName, fileNameFormat, testFile->d_name);
-
-			Mat inputImg = imread(inputImgName, 0);
-			Mat saliencyMap;
-			if (methodStr == "CHO" || methodStr == "MIX") {
-				saliencyMap = inputImg;
-			} else {
-				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
-			}
-
-			Mat saliencyObj;
-			threshold(saliencyMap, saliencyObj, PARAM1, 255, THRESH_BINARY);
-
-			evaluateMap(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyObj);
-//			if (!flag) {
-//				imwrite("test/MSRA10K/result/"+imgId+"_CHO.png", saliencyMap);
-//				imwrite("test/MSRA10K/result/"+imgId+"_GT.bmp", binaryMask[imgId]);
-//				Mat inputImg = imread("test/MSRA10K/input/"+imgId+".jpg");
-//				imwrite("test/MSRA10K/result/"+imgId+"_input.jpg", inputImg);
-//				imwrite("test/MSRA10K/negative/"+imgId+".jpg", inputImg);
-//			}
-
-		}
-
-		map<string,double>::iterator it;
-		for (it = precision.begin(); it != precision.end(); it++) {
-
-			string methodStr = it->first;
-			double tmp_precision = precision[methodStr] / methodCount[methodStr];
-			double tmp_recall = recall[methodStr] / methodCount[methodStr];
-
-			fprintf(recall_precision_File, "%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
-
-			printf("%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
-			cout << methodStr << endl;
-
-		}
-		fprintf(recall_precision_File, "\n");
 	}
 	fclose(recall_precision_File);
 

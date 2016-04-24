@@ -8,23 +8,21 @@
 int main(int args, char **argv) {
 
 #ifdef EVALUATE_MASK
-	//compMaskOthers_1K();
-	//compMaskOthers_10K();
-	compResults_10K();
+	benchMark(argv[1]);
 	return 0;
 #endif
 
 	int st_time = clock();
 
 	char dirName[100];
-	sprintf(dirName, "test/ECSSD/%s", argv[1]);
+	sprintf(dirName, "test/MSRA10K/%s", argv[1]);
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
 	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	const char *GTDir = "test/ECSSD/groundtruth";
+	const char *GTDir = "test/MSRA10K/groundtruth";
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, GTDir);
 
@@ -78,7 +76,7 @@ int main(int args, char **argv) {
 #ifdef SAVE_SALIENCY
 		int len = strlen(testFile->d_name);
 		string str = string(testFile->d_name).substr(0, len-4);
-		str = "test/MSRA10K/MIX_Cue/" + str + "_CHO.png";
+		str = "test/MSRA10K/Saliency_CHO/" + str + "_CHO.png";
 		imwrite(str, saliencyMap);
 
 		continue;
