@@ -23,7 +23,7 @@ void getNormalizedCut(vector<int> &regionTag, const Mat &W) {
 	Mat tmpMat = D_inv * D_W * D_inv;
 
 	Mat eigenVec, eigenVal;
-	bool eigenExist = eigen(tmpMat, eigenVal, eigenVec, -1, -1);
+	bool eigenExist = eigen(tmpMat, eigenVal, eigenVec);
 	if (!eigenExist) {
 		cout << "Eigen does not exist !!" << endl;
 		return;

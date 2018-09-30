@@ -150,8 +150,8 @@ int hashVec3b(const Vec3b &v) {
 Vec3b deHashVec3b(int d) {
 
 	d = d | 0xff000000;
-	Vec3b v = *(Vec3b*)(&d);
-	return v;
+	Vec3b * _v = (Vec3b*)&d;
+	return *_v;
 }
 
 void init() {
