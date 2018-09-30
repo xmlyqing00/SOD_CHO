@@ -11,4 +11,3 @@ void refineSalientObj(Mat &saliencyObj);
 void getSaliencyObj(Mat &saliencyObj, const Mat &_saliencyMap, const Mat &LABImg, const int thres0);
 
 #endif // CUTOBJ
-

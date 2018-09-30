@@ -2,11 +2,10 @@
 #define EVALUATE
 
 #include "comman.h"
-#include "type_file.h"
 
-void getGroundTruth(map<string, Mat> &binaryMask, TypeFile &fileSet);
+void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName);
 
-void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap);
+bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap);
 
 void compResults_10K();
 

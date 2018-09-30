@@ -9,4 +9,3 @@ void recursivePyramidRegion(vector< vector<int> > &pyramidRegionTag, const vecto
 void buildPyramidRegion(vector<Mat> &pyramidRegion, vector<int> &_regionCount, const Mat &pixelRegion, const Mat &W);
 
 #endif // PYRAMID_H
-

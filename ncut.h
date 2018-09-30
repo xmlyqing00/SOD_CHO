@@ -6,4 +6,3 @@
 void getNormalizedCut(vector<int> &regionTag, const Mat &W);
 
 #endif // NCUT_H
-
