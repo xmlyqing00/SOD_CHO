@@ -36,12 +36,25 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 
 }
 
+<<<<<<< HEAD
 //void compMaskOthers_1K() {
 
 //	FILE *recall_precision_File = fopen("logs/recall_precision.txt", "w");
+=======
+void benchMark(char *datasetName) {
+
+	char folderName[100] = "test/";
+	strcat(folderName, datasetName);
+
+	char logName[100];
+	strcpy(logName, folderName);
+	strcat(logName, "/recall_precision.txt");
+	FILE *recall_precision_File = fopen(logName, "w");
+>>>>>>> Old_Paper_Stable_Version
 
 //	int testNum = 0;
 
+<<<<<<< HEAD
 //	map<string, Mat> binaryMask;
 //	getGroundTruth(binaryMask, "test/binarymask");
 
@@ -56,18 +69,51 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 //		memset(fileNameFormat, 0, sizeof(fileNameFormat));
 //		for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
 //		strcat(fileNameFormat, "/%s");
+=======
+	char groundtruthName[100];
+	strcpy(groundtruthName, folderName);
+	strcat(groundtruthName, "/groundtruth");
+	map<string, Mat> binaryMask;
+	getGroundTruth(binaryMask, groundtruthName);
 
+	map<int, vector<double> > precision, recall, f_measure;
+	map<int, vector<int> > methodCount;
 
+	fprintf(recall_precision_File, "Tf=[");
+
+	for (int Tf = 250; Tf >= 0; Tf -= 5) {
+
+		fprintf(recall_precision_File, "%d, ", Tf);
+>>>>>>> Old_Paper_Stable_Version
+
+		printf("%d\t%d", testNum, Tf);
+		cout << endl;
+
+		char dirName[100];
+		strcpy(dirName, folderName);
+		strcat(dirName, "/Saliency");
 
 //		DIR *testDir = opendir(dirName);
 //		dirent *testFile;
 
+<<<<<<< HEAD
 //		map<string, double> precision, recall;
 //		map<string, int> methodCount;
 
 //		int c = 0;
 
 //		while ((testFile = readdir(testDir)) != NULL) {
+=======
+		int c = 0;
+
+		for (int i = 0; i < 6; i++) {
+			methodCount[i].push_back(0);
+			precision[i].push_back(0);
+			recall[i].push_back(0);
+		}
+
+		while ((testFile = readdir(testDir)) != NULL) {
+>>>>>>> Old_Paper_Stable_Version
 
 //			if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
 //			string str(testFile->d_name);
@@ -77,6 +123,7 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 //			string methodStr = str.substr(methodStr_st + 1, methodStr_ed-methodStr_st-1);
 //			string imgId = str.substr(0, methodStr_st);
 
+<<<<<<< HEAD
 //			if (methodStr != "CHO") continue;
 
 //			if (methodCount.find(methodStr) == methodCount.end()) {
@@ -86,10 +133,33 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 //			} else {
 //				methodCount[methodStr]++;
 //			}
+=======
+			int methodId = -1;
+			if (methodStr == "CHO") {
+				methodId = 0;
+			}
+			if (methodStr == "RC") {
+				methodId = 1;
+			}
+			if (methodStr == "HC") {
+				methodId = 2;
+			}
+			if (methodStr == "LC") {
+				methodId = 3;
+			}
+			if (methodStr == "SR") {
+				methodId = 4;
+			}
+			if (methodStr == "FT") {
+				methodId = 5;
+			}
+			methodCount[methodId].back()++;
+>>>>>>> Old_Paper_Stable_Version
 
 //			c++;
 //			//cout << c << " " << testFile->d_name << endl;
 
+<<<<<<< HEAD
 //			char inputImgName[100];
 //			sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
@@ -103,9 +173,28 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 //			threshold(saliencyMap, saliencyMap, PARAM1, 255, THRESH_BINARY);
 
 //			evaluateMap(precision[methodStr], recall[methodStr], binaryMask[imgId], saliencyMap);
+=======
+			char fileNameFormat[100];
+			strcpy(fileNameFormat, dirName);
+			strcat(fileNameFormat, "/%s");
+			char inputImgName[100];
+			sprintf(inputImgName, fileNameFormat, testFile->d_name);
+
+			Mat inputImg = imread(inputImgName, 0);
+			Mat saliencyMap;
+			if (methodStr == "CHO") {
+				saliencyMap = inputImg;
+			} else {
+				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
+			}
+			threshold(saliencyMap, saliencyMap, Tf, 255, THRESH_BINARY);
+
+			evaluateMap(precision[methodId].back(), recall[methodId].back(), binaryMask[imgId], saliencyMap);
+>>>>>>> Old_Paper_Stable_Version
 
 //		}
 
+<<<<<<< HEAD
 //		map<string,double>::iterator it;
 //		for (it = precision.begin(); it != precision.end(); it++) {
 
@@ -213,6 +302,47 @@ void evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &
 //			double tmp_recall = recall[methodStr] / methodCount[methodStr];
 
 //			fprintf(recall_precision_File, "%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
+=======
+		for (int k = 0; k < 6; k++) {
+
+			double tmp_precision = precision[k].back() / methodCount[k].back();
+			double tmp_recall = recall[k].back() / methodCount[k].back();
+			double f = (1 + 0.3) * tmp_precision * tmp_recall / (0.3 * tmp_precision + tmp_recall);
+			f_measure[k].push_back(f);
+
+			printf("%.4lf\t%.4lf\t%.4lf ", tmp_recall, tmp_precision, f);
+			cout << endl;
+
+		}
+	}
+
+	fprintf(recall_precision_File, "];\n");
+
+	for (int k = 0; k < 6; k++) {
+
+		cout << k << endl;
+
+		fprintf(recall_precision_File,"precision=[");
+		for (size_t i = 0; i < precision[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", precision[k][i] / methodCount[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
+
+		fprintf(recall_precision_File,"recall=[");
+		for (size_t i = 0; i < recall[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", recall[k][i] / methodCount[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
+
+		fprintf(recall_precision_File,"f=[");
+		for (size_t i = 0; i < f_measure[k].size(); i++) {
+			fprintf(recall_precision_File, "%.4lf, ", f_measure[k][i]);
+		}
+		fprintf(recall_precision_File,"];\n");
+		cout << endl;
+	}
+	fclose(recall_precision_File);
+>>>>>>> Old_Paper_Stable_Version
 
 //			printf("%.4lf\t%.4lf\t", tmp_recall, tmp_precision);
 //			cout << methodStr << endl;

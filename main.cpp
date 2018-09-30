@@ -9,15 +9,25 @@
 int main(int args, char **argv) {
 
 #ifdef EVALUATE_MASK
-	//compMaskOthers_1K();
-	//compMaskOthers_10K();
-	compResults_10K();
+	benchMark(argv[1]);
 	return 0;
 #endif
 
 	int st_time = clock();
 
+<<<<<<< HEAD
 	TypeFile fileSet(argv[1]);
+=======
+	char dirName[100];
+	sprintf(dirName, "test/MSRA10K/%s", argv[1]);
+
+	char fileNameFormat[100];
+	memset(fileNameFormat, 0, sizeof(fileNameFormat));
+	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
+	strcat(fileNameFormat, "/%s");
+
+	const char *GTDir = "test/MSRA10K/groundtruth";
+>>>>>>> Old_Paper_Stable_Version
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, fileSet);
 
@@ -29,9 +39,25 @@ int main(int args, char **argv) {
 		Mat inputImg, LABImg;
 		readImage(inputFileName, inputImg, LABImg);
 
+<<<<<<< HEAD
 		Mat paletteMap;
 		vector<Vec3f> palette;
 		quantizeColorSpace(paletteMap, palette, LABImg);
+=======
+		Mat saliencyMap;
+		getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg);
+
+#ifdef SAVE_SALIENCY
+		int len = strlen(testFile->d_name);
+		string str = string(testFile->d_name).substr(0, len-4);
+		str = "test/MSRA10K/Saliency_CHO/" + str + "_CHO.png";
+		imwrite(str, saliencyMap);
+
+		continue;
+
+#endif
+		for (int param2 = 0; param2 < test_num2; param2++) {
+>>>>>>> Old_Paper_Stable_Version
 
 		vector<TypeRegionSet> multiLayerModel;
 		buildMultiLayerModel(multiLayerModel, paletteMap, LABImg);

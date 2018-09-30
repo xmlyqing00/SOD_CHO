@@ -291,6 +291,7 @@ void updateRegionSmooth(Mat &saliencyMap, const vector<TypeRegionSet> &multiLaye
 
 }
 
+<<<<<<< HEAD
 void getSaliencyMap(Mat &saliencyMap, vector<TypeRegionSet> &multiLayerModel, const Mat &paletteMap) {
 
 	Size imgSize = paletteMap.size();
@@ -318,5 +319,66 @@ void getSaliencyMap(Mat &saliencyMap, vector<TypeRegionSet> &multiLayerModel, co
 	//imshow("Border_Map.png", saliencyMap);
 
 	//waitKey(0);
+=======
+void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vector<Mat> &pyramidRegion,
+					const Mat &over_pixelRegion, const int &over_regionCount, const Mat &LABImg) {
+
+	Mat _saliencyMap;
+	getCHOSaliencyMap(_saliencyMap, regionCount, pyramidRegion, LABImg);
+
+#ifdef SHOW_IMAGE
+	Mat tmp_saliencyMap;
+	normalize(_saliencyMap, tmp_saliencyMap, 0, 1, CV_MINMAX);
+	tmp_saliencyMap.convertTo(tmp_saliencyMap, CV_8UC1, 255);
+	imshow("CHO", tmp_saliencyMap);
+	imwrite("debug_output/CHO.png", tmp_saliencyMap);
+#endif
+
+	updateMixContrast(_saliencyMap, over_pixelRegion, over_regionCount, LABImg);
+
+	_saliencyMap.convertTo(saliencyMap, CV_8UC1);
+
+	Mat saliencyMap_base = saliencyMap.clone();
+#ifdef SHOW_IMAGE
+	imshow("MIX", saliencyMap);
+	imwrite("debug_output/MIX.png", saliencyMap);
+#endif
+
+	Mat borderMap;
+	updateborderMap(saliencyMap, borderMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("debug_output/S_border1", saliencyMap);
+#endif
+
+	updateColorSmooth(saliencyMap, LABImg);
+#ifdef SHOW_IMAGE
+	imshow("debug_output/S_color", saliencyMap);
+#endif
+
+//	Mat tmpMap, tmpMap1;
+//	saliencyMap.convertTo(tmpMap, CV_32SC1);
+//	saliencyMap_base.convertTo(tmpMap1, CV_32SC1);
+//	tmpMap = tmpMap.mul(tmpMap1);
+//	normalize(tmpMap, tmpMap, 0, 255, CV_MINMAX);
+//	tmpMap.convertTo(saliencyMap, CV_8UC1);
+	saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap_base;
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+
+	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("debug_output/S_space", saliencyMap);
+#endif
+
+	updateborderMap(saliencyMap, borderMap, over_pixelRegion, over_regionCount);
+#ifdef SHOW_IMAGE
+	imshow("debug_output/S_border2", saliencyMap);
+#endif
+
+	GaussianBlur(saliencyMap, saliencyMap, Size(3,3), 0);
+	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+#ifdef SHOW_IMAGE
+	imwrite("debug_output/Saliency_Map.png", saliencyMap);
+#endif
+>>>>>>> Old_Paper_Stable_Version
 
 }
