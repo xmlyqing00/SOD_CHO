@@ -189,7 +189,7 @@ void init() {
 	}
 }
 
-void readImage( const char *imgName, Mat &inputImg, Mat &LABImg ) {
+void readImage( const string & imgName, Mat &inputImg, Mat &LABImg ) {
 
 	inputImg = imread( imgName );
 #ifdef SHOW_IMAGE

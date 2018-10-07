@@ -14,42 +14,43 @@ int main(int args, char **argv) {
 
 	int st_time = clock();
 
-	char dirName[100];
-	sprintf(dirName, "test/MSRA10K/%s", argv[1]);
+	string dataset_name = "HKU-IS/";
+	string dir_path = "/Ship01/Dataset/" + dataset_name;
+	string gt_dir_path = dir_path + "gt/";
+	string img_dir_path = dir_path + "imgs/";
+	string result_dir_path = "saliency/" + dataset_name;
 
-	char fileNameFormat[100];
-	memset(fileNameFormat, 0, sizeof(fileNameFormat));
-	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
-	strcat(fileNameFormat, "/%s");
-
-	const char *GTDir = "test/MSRA10K/groundtruth";
 	map<string, Mat> binaryMask;
-	getGroundTruth(binaryMask, GTDir);
+	getGroundTruth(binaryMask, gt_dir_path);
 
-	DIR *testDir = opendir(dirName);
-	dirent *testFile;
+	DIR *img_dir = opendir(img_dir_path.c_str());
+	dirent *img_file_name;
 	int fileNum = 0;
 
-	const int test_num1 = 1;
-	const int test_num2 = 1;
-	vector<double> precision_param(test_num1 * test_num2, 0);
-	vector<double> recall_param(test_num1 * test_num2, 0);
-	int PARAM_SET2[test_num2] = {70};
+	const int test_num = args - 1;
+	vector<int> PARAM_SET(test_num, 0);
+	vector<double> precision_param(test_num, 0);
+	vector<double> recall_param(test_num, 0);
+	vector<double> MAE_param(test_num, 0);
 
-	while ((testFile = readdir(testDir)) != NULL) {
+	for (int i = 0; i < test_num; i++) {
+		PARAM_SET[i] = atoi(argv[i+1]);
+	}
 
-		if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
+	cout << "Test " << test_num << " Params: ";
+	for (int i = 0; i < test_num; i++) cout << PARAM_SET[i] << " ";
+	cout << endl;
+
+	while ((img_file_name = readdir(img_dir)) != NULL) {
+
+		if (strcmp(img_file_name->d_name, ".") == 0 || strcmp(img_file_name->d_name, "..") == 0) continue;
 		fileNum++;
-		cout << fileNum << " " << testFile->d_name << endl;
+		cout << fileNum << " " << img_file_name->d_name << endl;
 
-		string imgId = string(testFile->d_name);
-		imgId = imgId.substr(0, imgId.length()-4);
-		//if (fileNum < 100) continue;
-		char inputImgName[100];
-		sprintf(inputImgName, fileNameFormat, testFile->d_name);
+		string input_img_name = img_dir_path + img_file_name->d_name;
 
 		Mat inputImg, LABImg;
-		readImage(inputImgName, inputImg, LABImg);
+		readImage(input_img_name, inputImg, LABImg);
 
 		Mat W;
 		Mat over_pixelRegion;
@@ -73,35 +74,37 @@ int main(int args, char **argv) {
 		Mat saliencyMap;
 		getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg);
 
-#ifdef SAVE_SALIENCY
-		int len = strlen(testFile->d_name);
-		string str = string(testFile->d_name).substr(0, len-4);
-		str = "test/MSRA10K/Saliency_CHO/" + str + "_CHO.png";
-		imwrite(str, saliencyMap);
-
-		continue;
-
+#ifdef SAVE_SALIENCY 
+		string output_path = result_dir_path + img_file_name->d_name;
+		imwrite(output_path, saliencyMap);
+		// continue;
 #endif
-		for (int param2 = 0; param2 < test_num2; param2++) {
+		for (int paramIdx = 0; paramIdx < test_num; paramIdx++) {
 
 			Mat saliencyObj;
 			//getSaliencyObj(saliencyObj, saliencyMap, LABImg, PARAM_SET2[param2]);
-			threshold(saliencyMap, saliencyObj, 250, 255, THRESH_BINARY);
+			threshold(saliencyMap, saliencyObj, PARAM_SET[paramIdx], 255, THRESH_BINARY);
 
-			int paramIdx = param2;
-			double tmp_precision = precision_param[paramIdx];
-			double tmp_recall = recall_param[paramIdx];
+			double tmp_precision, tmp_recall, tmp_MAE;
 
-			evaluateMap(precision_param[paramIdx], recall_param[paramIdx], binaryMask[imgId], saliencyObj);
+			evaluateMap(tmp_precision, tmp_recall, tmp_MAE, binaryMask[img_file_name->d_name], saliencyObj);
 
-			tmp_precision = precision_param[paramIdx] - tmp_precision;
-			tmp_recall = recall_param[paramIdx] - tmp_recall;
+			precision_param[paramIdx] += tmp_precision;
+			recall_param[paramIdx] += tmp_recall;
+			MAE_param[paramIdx] += tmp_MAE;
 
-			printf("cur %lf %lf total %lf %lf",
-				   tmp_precision, tmp_recall,
-				   precision_param[paramIdx] / fileNum, recall_param[paramIdx] / fileNum);
+			double avg_prec = precision_param[paramIdx] / fileNum;
+			double avg_recall = recall_param[paramIdx] / fileNum;
+			double F = ((1.3) * avg_prec * avg_recall) / (0.3 * avg_prec + avg_recall);
 
-			cout << endl;
+			if (fileNum % 100 == 0) {
+				printf("PARAM %d\tprec %.3lf recall %.3lf F: %.3lf\tMAE: %.3lf\n",
+					PARAM_SET[paramIdx],
+				   	avg_prec, avg_recall, F,
+					MAE_param[paramIdx] / fileNum);
+			}
+			
+
 //			waitKey();
 
 #ifdef POS_NEG_RESULT_OUTPUT
@@ -146,17 +149,13 @@ int main(int args, char **argv) {
 		}
 	}
 
-	for (int param1 = 0; param1 < test_num1; param1++) {
-		for (int param2 = 0; param2 < test_num2; param2++) {
+	for (int paramIdx = 0; paramIdx < test_num; paramIdx++) {
 
-			int paramIdx = param1 * test_num2 + param2;
-
-			double a = precision_param[paramIdx] / fileNum;
-			double b = recall_param[paramIdx] / fileNum;
-			double c = (1 + 0.3) * a * b / (0.3 * a + b);
-			printf("%03d : %lf\t%lf\t%lf", PARAM_SET2[param2], a, b, c);
-			cout << endl;
-		}
+		double a = precision_param[paramIdx] / fileNum;
+		double b = recall_param[paramIdx] / fileNum;
+		double c = (1 + 0.3) * a * b / (0.3 * a + b);
+		double d = MAE_param[paramIdx] / fileNum;
+		printf("%03d : prec: %.3lf\trecall %.3lf\tF: %.3lf MAE: %.3lf\n", PARAM_SET[paramIdx], a, b, c, d);
 	}
 
 	cout << (clock() - st_time) / 1000.0 << endl;

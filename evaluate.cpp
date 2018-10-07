@@ -1,16 +1,16 @@
 #include "evaluate.h"
 
-void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName) {
+void getGroundTruth(map<string,Mat> &binaryMask, const string & dirName) {
 
 	cout << "Ground Truth Input ..." << endl;
 	binaryMask.clear();
 
 	char fileNameFormat[100];
 	memset(fileNameFormat, 0, sizeof(fileNameFormat));
-	for (size_t i = 0; i < strlen(dirName); i++) fileNameFormat[i] = dirName[i];
+	for (size_t i = 0; i < dirName.length(); i++) fileNameFormat[i] = dirName[i];
 	strcat(fileNameFormat, "/%s");
 
-	DIR *testDir = opendir(dirName);
+	DIR *testDir = opendir(dirName.c_str());
 	dirent *testFile;
 
 	while ((testFile = readdir(testDir)) != NULL) {
@@ -23,32 +23,28 @@ void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName) {
 		string str(testFile->d_name);
 		Mat maskMat = imread(inputImgName, 0);
 		maskMat = maskMat(Rect(CROP_WIDTH, CROP_WIDTH, maskMat.cols-2*CROP_WIDTH, maskMat.rows-2*CROP_WIDTH));
-		str = str.substr(0, str.length()-4);
 		binaryMask[str] = maskMat;
 
 	}
 }
 
-bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap) {
+bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat &saliencyMap) {
 
 	int area_saliency = sum(saliencyMap).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
 	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
 
-	double tmp_precision, tmp_recall;
+	MAE =  mean(abs(saliencyMap - mask)).val[0] / 255;
 
 	if (area_saliency > 0) {
-		tmp_precision = (double)(area_intersection) / area_saliency;
-		tmp_recall = (double)(area_intersection) / area_mask;
+		precision = (double)(area_intersection) / area_saliency;
+		recall = (double)(area_intersection) / area_mask;
 	} else {
-		tmp_precision = 0;
-		tmp_recall = 0;
+		precision = 0;
+		recall = 0;
 	}
 
-	precision += tmp_precision;
-	recall += tmp_recall;
-
-	if (tmp_precision < 0.8) return false;
+	if (precision < 0.8) return false;
 		else return true;
 
 }
@@ -147,7 +143,8 @@ void benchMark(char *datasetName) {
 			}
 			threshold(saliencyMap, saliencyMap, Tf, 255, THRESH_BINARY);
 
-			evaluateMap(precision[methodId].back(), recall[methodId].back(), binaryMask[imgId], saliencyMap);
+			double MAE;
+			evaluateMap(precision[methodId].back(), recall[methodId].back(), MAE, binaryMask[imgId], saliencyMap);
 
 		}
 
@@ -251,7 +248,8 @@ void compResults_10K() {
 
 			threshold(saliencyMap[methodStr], saliencyObj, threshold_f, 255, THRESH_BINARY);
 
-			evaluateMap(precision[methodStr], recall[methodStr], binaryMask, saliencyObj);
+			double MAE;
+			evaluateMap(precision[methodStr], recall[methodStr], MAE, binaryMask, saliencyObj);
 
 		}
 

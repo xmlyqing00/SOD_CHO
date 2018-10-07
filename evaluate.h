@@ -3,9 +3,9 @@
 
 #include "comman.h"
 
-void getGroundTruth(map<string,Mat> &binaryMask, const char *dirName);
+void getGroundTruth(map<string,Mat> &binaryMask, const string & dirName);
 
-bool evaluateMap(double &precision, double &recall, const Mat &mask, const Mat &saliencyMap);
+bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat &saliencyMap);
 
 void compResults_10K();
 

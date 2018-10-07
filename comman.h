@@ -4,7 +4,7 @@
 //#define SHOW_IMAGE
 //#define POS_NEG_RESULT_OUTPUT
 //#define EVALUATE_MASK
-#define SAVE_SALIENCY
+// #define SAVE_SALIENCY
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -98,7 +98,7 @@ void getRegionDist(Mat &regionDist, const Mat &pixelRegion, const int regionCoun
 void getRegionElement( vector<Point> *regionElement, int *regionElementCount, const Mat &pixelRegion);
 int getElementHead( int u, int *head );
 
-void readImage( const char *imgName, Mat &inputImg, Mat &LABImg );
+void readImage( const string & imgName, Mat &inputImg, Mat &LABImg );
 void writeRegionImageRandom( const int regionCount, const Mat &pixelRegion, const char *imgName, const int showFlag, const int writeFlag);
 void writeRegionImageRepresent(const Mat &pixelRegion, const vector<Vec3f> &regionColor, const char *imgName, const int showFlag, const int writeFlag);
 
