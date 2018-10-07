@@ -5,7 +5,7 @@
 
 void getGroundTruth(map<string,Mat> &binaryMask, const string & dirName);
 
-bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat &saliencyMap);
+bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat &saliencyMap, const Mat &saliencyObj);
 
 void compResults_10K();
 

@@ -4,7 +4,7 @@
 //#define SHOW_IMAGE
 //#define POS_NEG_RESULT_OUTPUT
 //#define EVALUATE_MASK
-// #define SAVE_SALIENCY
+#define SAVE_SALIENCY
 
 #include <stdlib.h>
 #include <stdio.h>

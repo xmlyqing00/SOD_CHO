@@ -2,7 +2,7 @@
 
 void getGroundTruth(map<string,Mat> &binaryMask, const string & dirName) {
 
-	cout << "Ground Truth Input ..." << endl;
+	cout << "Ground Truth Input ..." << dirName << endl;
 	binaryMask.clear();
 
 	char fileNameFormat[100];
@@ -15,26 +15,32 @@ void getGroundTruth(map<string,Mat> &binaryMask, const string & dirName) {
 
 	while ((testFile = readdir(testDir)) != NULL) {
 
-		if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0) continue;
+		if (strcmp(testFile->d_name, ".") == 0 || strcmp(testFile->d_name, "..") == 0 || strcmp(testFile->d_name, "Thumbs.db") == 0) continue;
 
 		char inputImgName[100];
 		sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
-		string str(testFile->d_name);
+		string img_file_str(testFile->d_name);
+		img_file_str = img_file_str.substr(0, img_file_str.length()-4);
+		// cout << img_file_str << endl;
+
 		Mat maskMat = imread(inputImgName, 0);
 		maskMat = maskMat(Rect(CROP_WIDTH, CROP_WIDTH, maskMat.cols-2*CROP_WIDTH, maskMat.rows-2*CROP_WIDTH));
-		binaryMask[str] = maskMat;
+		binaryMask[img_file_str] = maskMat;
 
 	}
+
+	cout << "Finished ground truth." << endl;
+
 }
 
-bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat &saliencyMap) {
+bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask, const Mat & saliencyMap, const Mat &saliencyObj) {
 
-	int area_saliency = sum(saliencyMap).val[0] / 255;
+	int area_saliency = sum(saliencyObj).val[0] / 255;
 	int area_mask = sum(mask).val[0] / 255;
-	int area_intersection = sum(saliencyMap & mask).val[0] / 255;
+	int area_intersection = sum(saliencyObj & mask).val[0] / 255;
 
-	MAE =  mean(abs(saliencyMap - mask)).val[0] / 255;
+	MAE =  mean(abs(saliencyObj - mask)).val[0] / 255;
 
 	if (area_saliency > 0) {
 		precision = (double)(area_intersection) / area_saliency;
@@ -135,16 +141,16 @@ void benchMark(char *datasetName) {
 			sprintf(inputImgName, fileNameFormat, testFile->d_name);
 
 			Mat inputImg = imread(inputImgName, 0);
-			Mat saliencyMap;
+			Mat saliencyMap, saliencyObj;
 			if (methodStr == "CHO") {
 				saliencyMap = inputImg;
 			} else {
 				saliencyMap = inputImg(Rect(CROP_WIDTH, CROP_WIDTH, inputImg.cols-2*CROP_WIDTH, inputImg.rows-2*CROP_WIDTH));
 			}
-			threshold(saliencyMap, saliencyMap, Tf, 255, THRESH_BINARY);
+			threshold(saliencyMap, saliencyObj, Tf, 255, THRESH_BINARY);
 
 			double MAE;
-			evaluateMap(precision[methodId].back(), recall[methodId].back(), MAE, binaryMask[imgId], saliencyMap);
+			evaluateMap(precision[methodId].back(), recall[methodId].back(), MAE, binaryMask[imgId], saliencyMap, saliencyObj);
 
 		}
 
@@ -249,7 +255,7 @@ void compResults_10K() {
 			threshold(saliencyMap[methodStr], saliencyObj, threshold_f, 255, THRESH_BINARY);
 
 			double MAE;
-			evaluateMap(precision[methodStr], recall[methodStr], MAE, binaryMask, saliencyObj);
+			evaluateMap(precision[methodStr], recall[methodStr], MAE, binaryMask, saliencyMap[methodStr], saliencyObj);
 
 		}
 

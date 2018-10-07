@@ -12,9 +12,9 @@ int main(int args, char **argv) {
 	return 0;
 #endif
 
-	int st_time = clock();
+	int st_time = clock(); 
 
-	string dataset_name = "HKU-IS/";
+	string dataset_name = "PASCAL-S/";
 	string dir_path = "/Ship01/Dataset/" + dataset_name;
 	string gt_dir_path = dir_path + "gt/";
 	string img_dir_path = dir_path + "imgs/";
@@ -43,9 +43,13 @@ int main(int args, char **argv) {
 
 	while ((img_file_name = readdir(img_dir)) != NULL) {
 
-		if (strcmp(img_file_name->d_name, ".") == 0 || strcmp(img_file_name->d_name, "..") == 0) continue;
+		if (strcmp(img_file_name->d_name, ".") == 0 || strcmp(img_file_name->d_name, "..") == 0 || 
+			strcmp(img_file_name->d_name, "Thumbs.db") == 0 || strcmp(img_file_name->d_name, "imgList.mat") == 0) continue;
 		fileNum++;
 		cout << fileNum << " " << img_file_name->d_name << endl;
+
+		string img_file_str(img_file_name->d_name);
+		img_file_str = img_file_str.substr(0, img_file_str.length()-4);
 
 		string input_img_name = img_dir_path + img_file_name->d_name;
 
@@ -75,7 +79,7 @@ int main(int args, char **argv) {
 		getSaliencyMap(saliencyMap, regionCount, pyramidRegion, over_pixelRegion, over_regionCount, LABImg);
 
 #ifdef SAVE_SALIENCY 
-		string output_path = result_dir_path + img_file_name->d_name;
+		string output_path = result_dir_path + img_file_str + ".png";
 		imwrite(output_path, saliencyMap);
 		// continue;
 #endif
@@ -87,7 +91,10 @@ int main(int args, char **argv) {
 
 			double tmp_precision, tmp_recall, tmp_MAE;
 
-			evaluateMap(tmp_precision, tmp_recall, tmp_MAE, binaryMask[img_file_name->d_name], saliencyObj);
+			// imshow("tmp", binaryMask[img_file_str]);
+			// waitKey(100);
+
+			evaluateMap(tmp_precision, tmp_recall, tmp_MAE, binaryMask[img_file_str], saliencyMap, saliencyObj);
 
 			precision_param[paramIdx] += tmp_precision;
 			recall_param[paramIdx] += tmp_recall;
