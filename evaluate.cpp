@@ -57,7 +57,7 @@ bool evaluateMap(double &precision, double &recall, double &MAE, const Mat &mask
 
 void benchMark(char *datasetName) {
 
-	char folderName[100] = "test/";
+	char folderName[100] = "/mnt/e/Dataset/";
 	strcat(folderName, datasetName);
 
 	char logName[100];
@@ -69,7 +69,7 @@ void benchMark(char *datasetName) {
 
 	char groundtruthName[100];
 	strcpy(groundtruthName, folderName);
-	strcat(groundtruthName, "/groundtruth");
+	strcat(groundtruthName, "/groundtruth_truth_mask");
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, groundtruthName);
 

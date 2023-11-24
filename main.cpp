@@ -14,12 +14,19 @@ int main(int args, char **argv) {
 
 	int st_time = clock(); 
 
-	string dataset_name = "PASCAL-S/";
-	string dir_path = "/Ship01/Dataset/" + dataset_name;
-	string gt_dir_path = dir_path + "gt/";
-	string img_dir_path = dir_path + "imgs/";
-	string result_dir_path = "saliency/" + dataset_name;
-
+	string dataset_name = "ECSSD/";
+	string dir_path = "/mnt/e/Dataset/" + dataset_name;
+	string gt_dir_path = dir_path + "ground_truth_mask/";
+	string img_dir_path = dir_path + "images/";
+	string result_dir_path = "saliency_" + dataset_name;
+	// int mkdir_res = mkdir(result_dir_path.c_str(), 0777);
+	if (mkdir(result_dir_path.c_str(), 0777) == -1) {
+        cerr << "Error :  " << strerror(errno) << result_dir_path.c_str() << endl;
+    } else {
+		cout << "Directory created. " << result_dir_path.c_str() << endl;
+	}
+	// cout << "Create dir " << result_dir_path << " " << mkdir_res << endl;
+	
 	map<string, Mat> binaryMask;
 	getGroundTruth(binaryMask, gt_dir_path);
 
@@ -165,7 +172,7 @@ int main(int args, char **argv) {
 		printf("%03d : prec: %.3lf\trecall %.3lf\tF: %.3lf MAE: %.3lf\n", PARAM_SET[paramIdx], a, b, c, d);
 	}
 
-	cout << (clock() - st_time) / 1000.0 << endl;
+	cout << "Run time: " << (clock() - st_time) / 1e6 << "s"<< endl;
 
 	return 0;
 

@@ -252,10 +252,10 @@ void updateMixContrast(Mat &_saliencyMap, const Mat &pixelRegion, const int regi
 	}
 
 	_saliencyMap = _saliencyMap.mul(contrastMap);
-	normalize(_saliencyMap, _saliencyMap, 0, 255, CV_MINMAX);
+	normalize(_saliencyMap, _saliencyMap, 0, 255, cv::NORM_MINMAX);
 
 #ifdef SHOW_IMAGE
-	normalize(contrastMap, contrastMap, 0, 1, CV_MINMAX);
+	normalize(contrastMap, contrastMap, 0, 1, cv::NORM_MINMAX);
 	contrastMap.convertTo(contrastMap, CV_8UC1, 255);
 	imshow("contrast", contrastMap);
 	imwrite("debug_output/contrast.png", contrastMap);
@@ -268,7 +268,7 @@ void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, c
 
 	if (!borderMap.empty()) {
 		saliencyMap.setTo(0, borderMap);
-		normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+		normalize(saliencyMap, saliencyMap, 0, 255, cv::NORM_MINMAX);
 		return;
 	}
 
@@ -344,7 +344,7 @@ void updateborderMap(Mat &saliencyMap, Mat &borderMap, const Mat &pixelRegion, c
 	}
 
 	saliencyMap.setTo(0, borderMap);
-	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	normalize(saliencyMap, saliencyMap, 0, 255, cv::NORM_MINMAX);
 
 #ifdef SHOW_IMAGE
 	imshow("Border_Map", borderMap);
@@ -561,7 +561,7 @@ void updateRegionSmooth(Mat &saliencyMap, const Mat &pixelRegion, const int regi
 		}
 	}
 
-	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	normalize(saliencyMap, saliencyMap, 0, 255, cv::NORM_MINMAX);
 
 }
 
@@ -573,7 +573,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 
 #ifdef SHOW_IMAGE
 	Mat tmp_saliencyMap;
-	normalize(_saliencyMap, tmp_saliencyMap, 0, 1, CV_MINMAX);
+	normalize(_saliencyMap, tmp_saliencyMap, 0, 1, cv::NORM_MINMAX);
 	tmp_saliencyMap.convertTo(tmp_saliencyMap, CV_8UC1, 255);
 	imshow("CHO", tmp_saliencyMap);
 	imwrite("debug_output/CHO.png", tmp_saliencyMap);
@@ -604,10 +604,10 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 //	saliencyMap.convertTo(tmpMap, CV_32SC1);
 //	saliencyMap_base.convertTo(tmpMap1, CV_32SC1);
 //	tmpMap = tmpMap.mul(tmpMap1);
-//	normalize(tmpMap, tmpMap, 0, 255, CV_MINMAX);
+//	normalize(tmpMap, tmpMap, 0, 255, cv::NORM_MINMAX);
 //	tmpMap.convertTo(saliencyMap, CV_8UC1);
 	saliencyMap = 0.5 * saliencyMap + 0.5 * saliencyMap_base;
-	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	normalize(saliencyMap, saliencyMap, 0, 255, cv::NORM_MINMAX);
 
 	updateRegionSmooth(saliencyMap, over_pixelRegion, over_regionCount);
 #ifdef SHOW_IMAGE
@@ -620,7 +620,7 @@ void getSaliencyMap(Mat &saliencyMap, const vector<int> &regionCount, const vect
 #endif
 
 	GaussianBlur(saliencyMap, saliencyMap, Size(3,3), 0);
-	normalize(saliencyMap, saliencyMap, 0, 255, CV_MINMAX);
+	normalize(saliencyMap, saliencyMap, 0, 255, cv::NORM_MINMAX);
 #ifdef SHOW_IMAGE
 	imwrite("debug_output/Saliency_Map.png", saliencyMap);
 #endif

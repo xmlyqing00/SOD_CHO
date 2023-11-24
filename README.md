@@ -5,3 +5,17 @@ In this paper, we establish a novel bottom-up cue named Convex Hull Overlap (CHO
 This paper was published in IEEE International Conference on Big Data (Big Data), workshop, 2018. The [link](https://ieeexplore.ieee.org/document/8622033) to view the full text.
 
 ![](BigData18.png)
+
+## Usage
+
+Download the salient object detection dataset `ECSSD` from the website `http://www.cse.cuhk.edu.hk/leojia/projects/hsaliency/dataset.html`.
+Then change the path in `main.cpp` to your own path of the dataset.
+```
+	string dataset_name = "ECSSD/";
+	string dir_path = "/mnt/e/Dataset/" + dataset_name;
+	string gt_dir_path = dir_path + "ground_truth_mask/";
+	string img_dir_path = dir_path + "images/";
+```
+
+Run `make` in the command line to compile the code.
+Use `./SOD_CHO` to execute the program.
