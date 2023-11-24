@@ -18,4 +18,4 @@ Then change the path in `main.cpp` to your own path of the dataset.
 ```
 
 Run `make` in the command line to compile the code.
-Use `./SOD_CHO` to execute the program.
+Use `./SOD_CHO 128` to execute the program. `128` could be any threshold value between 0 and 255 to determine the binary mask of the salient object.
